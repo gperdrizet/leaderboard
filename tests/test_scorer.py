@@ -3,10 +3,10 @@
 import unittest
 import os
 import tempfile
-import json
 import shutil
+import pandas as pd
 
-from src.scorer import Scorer, simple_accuracy_scorer, mse_scorer
+from src.scorer import Scorer
 
 
 class TestScorer(unittest.TestCase):
@@ -22,59 +22,29 @@ class TestScorer(unittest.TestCase):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
     
-    def create_executed_notebook(self, filename="executed.ipynb", execution_count=1):
-        """Helper to create an executed notebook file."""
-        notebook_content = {
-            "cells": [
-                {
-                    "cell_type": "code",
-                    "execution_count": execution_count,
-                    "metadata": {},
-                    "outputs": [
-                        {
-                            "output_type": "stream",
-                            "name": "stdout",
-                            "text": ["Hello World\n"]
-                        }
-                    ],
-                    "source": ["print('Hello World')"]
-                },
-                {
-                    "cell_type": "code",
-                    "execution_count": execution_count + 1,
-                    "metadata": {},
-                    "outputs": [],
-                    "source": ["x = 42"]
-                }
-            ],
-            "metadata": {
-                "kernelspec": {
-                    "display_name": "Python 3",
-                    "language": "python",
-                    "name": "python3"
-                }
-            },
-            "nbformat": 4,
-            "nbformat_minor": 4
-        }
+    def create_csv_file(self, filename="output.csv", data=None):
+        """Helper to create a CSV file."""
+        if data is None:
+            data = pd.DataFrame({
+                'A': [1, 2, 3],
+                'B': [4, 5, 6],
+                'C': [7, 8, 9]
+            })
         
         filepath = os.path.join(self.temp_dir, filename)
-        with open(filepath, 'w') as f:
-            json.dump(notebook_content, f)
-        
+        data.to_csv(filepath, index=False)
         return filepath
     
-    def create_ground_truth_file(self, filename="ground_truth.json"):
-        """Helper to create a ground truth file."""
-        ground_truth = {
-            "expected_result": 42,
-            "expected_accuracy": 0.95
-        }
+    def create_ground_truth_csv(self, filename="ground_truth.csv"):
+        """Helper to create a ground truth CSV file."""
+        data = pd.DataFrame({
+            'A': [1, 2, 3],
+            'B': [4, 5, 6],
+            'C': [7, 8, 9]
+        })
         
         filepath = os.path.join(self.temp_dir, filename)
-        with open(filepath, 'w') as f:
-            json.dump(ground_truth, f)
-        
+        data.to_csv(filepath, index=False)
         return filepath
     
     def test_scorer_initialization(self):
@@ -83,90 +53,42 @@ class TestScorer(unittest.TestCase):
         self.assertIsNone(scorer.ground_truth)
     
     def test_scorer_initialization_with_ground_truth(self):
-        """Test scorer initialization with ground truth file."""
-        gt_path = self.create_ground_truth_file()
+        """Test scorer initialization with ground truth CSV file."""
+        gt_path = self.create_ground_truth_csv()
         scorer = Scorer(ground_truth_path=gt_path)
         self.assertIsNotNone(scorer.ground_truth)
-        self.assertEqual(scorer.ground_truth['expected_result'], 42)
+        self.assertEqual(len(scorer.ground_truth), 3)
     
     def test_scorer_load_ground_truth_invalid_path(self):
         """Test scorer with invalid ground truth path."""
-        scorer = Scorer(ground_truth_path="/nonexistent/path.json")
+        scorer = Scorer(ground_truth_path="/nonexistent/path.csv")
         self.assertIsNone(scorer.ground_truth)
     
-    def test_score_notebook_basic(self):
-        """Test basic notebook scoring."""
-        filepath = self.create_executed_notebook()
-        score, feedback = self.scorer.score_notebook(filepath)
+    def test_score_notebook_no_csv(self):
+        """Test scoring when no CSV file exists."""
+        # Create empty directory with a dummy notebook
+        notebook_path = os.path.join(self.temp_dir, "test.ipynb")
+        with open(notebook_path, 'w') as f:
+            f.write("{}")
         
-        # Should return numeric score and string feedback
-        self.assertIsInstance(score, float)
-        self.assertIsInstance(feedback, str)
-        self.assertGreaterEqual(score, 0.0)
-    
-    def test_score_notebook_all_cells_executed(self):
-        """Test scoring when all cells are executed."""
-        filepath = self.create_executed_notebook()
-        score, feedback = self.scorer.score_notebook(filepath)
+        score, feedback = self.scorer.score_notebook(notebook_path)
         
-        # Should get points for completion
-        self.assertGreater(score, 0.0)
-    
-    def test_score_notebook_partial_execution(self):
-        """Test scoring with partially executed notebook."""
-        # Create notebook with mixed execution counts
-        notebook_content = {
-            "cells": [
-                {
-                    "cell_type": "code",
-                    "execution_count": 1,
-                    "metadata": {},
-                    "outputs": [],
-                    "source": ["x = 1"]
-                },
-                {
-                    "cell_type": "code",
-                    "execution_count": None,  # Not executed
-                    "metadata": {},
-                    "outputs": [],
-                    "source": ["y = 2"]
-                }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 4
-        }
-        
-        filepath = os.path.join(self.temp_dir, "partial.ipynb")
-        with open(filepath, 'w') as f:
-            json.dump(notebook_content, f)
-        
-        score, feedback = self.scorer.score_notebook(filepath)
-        
-        # Score should reflect partial execution (50% of 10 points = 5.0)
-        self.assertAlmostEqual(score, 5.0, places=1)
-    
-    def test_score_notebook_no_code_cells(self):
-        """Test scoring notebook with no code cells."""
-        notebook_content = {
-            "cells": [
-                {
-                    "cell_type": "markdown",
-                    "metadata": {},
-                    "source": ["# Title"]
-                }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 4
-        }
-        
-        filepath = os.path.join(self.temp_dir, "nocode.ipynb")
-        with open(filepath, 'w') as f:
-            json.dump(notebook_content, f)
-        
-        score, feedback = self.scorer.score_notebook(filepath)
         self.assertEqual(score, 0.0)
+        self.assertIn("No CSV file found", feedback)
+    
+    def test_score_notebook_with_csv(self):
+        """Test scoring when CSV file exists."""
+        # Create CSV in temp directory
+        self.create_csv_file()
+        
+        # Create notebook path in same directory
+        notebook_path = os.path.join(self.temp_dir, "test.ipynb")
+        
+        score, feedback = self.scorer.score_notebook(notebook_path)
+        
+        # Should get points for having CSV
+        self.assertGreater(score, 0.0)
+        self.assertIsInstance(feedback, str)
     
     def test_score_notebook_invalid_file(self):
         """Test scoring with invalid notebook file."""
@@ -176,95 +98,99 @@ class TestScorer(unittest.TestCase):
         self.assertEqual(score, 0.0)
         self.assertIn("Error", feedback)
     
-    def test_score_from_variables_empty(self):
-        """Test scoring from empty variables dict."""
-        score, feedback = self.scorer.score_from_variables({})
+    def test_score_against_ground_truth_perfect(self):
+        """Test scoring against ground truth with perfect match."""
+        gt_path = self.create_ground_truth_csv()
+        scorer = Scorer(ground_truth_path=gt_path)
+        
+        # Create matching CSV
+        csv_path = self.create_csv_file()
+        
+        score, feedback = scorer.score_from_csv_path(csv_path)
+        
+        # Should get 100% accuracy
+        self.assertEqual(score, 100.0)
+        self.assertIn("100.00%", feedback)
+    
+    def test_score_against_ground_truth_partial(self):
+        """Test scoring against ground truth with partial match."""
+        gt_path = self.create_ground_truth_csv()
+        scorer = Scorer(ground_truth_path=gt_path)
+        
+        # Create CSV with some differences
+        data = pd.DataFrame({
+            'A': [1, 2, 99],  # Third value differs
+            'B': [4, 5, 6],
+            'C': [7, 8, 9]
+        })
+        csv_path = self.create_csv_file(data=data)
+        
+        score, feedback = scorer.score_from_csv_path(csv_path)
+        
+        # Should get 8/9 = 88.89% accuracy
+        self.assertAlmostEqual(score, 88.89, places=1)
+    
+    def test_score_against_ground_truth_shape_mismatch(self):
+        """Test scoring with shape mismatch."""
+        gt_path = self.create_ground_truth_csv()
+        scorer = Scorer(ground_truth_path=gt_path)
+        
+        # Create CSV with different shape
+        data = pd.DataFrame({
+            'A': [1, 2],  # Only 2 rows instead of 3
+            'B': [4, 5]
+        })
+        csv_path = self.create_csv_file(data=data)
+        
+        score, feedback = scorer.score_from_csv_path(csv_path)
+        
+        # Should get 0 for shape mismatch
         self.assertEqual(score, 0.0)
-        self.assertIn("No variables", feedback)
+        self.assertIn("shape mismatch", feedback)
     
-    def test_score_from_variables_with_data(self):
-        """Test scoring from variables dict with data."""
-        variables = {"accuracy": 0.95, "result": 42}
-        score, feedback = self.scorer.score_from_variables(variables)
+    def test_score_against_ground_truth_column_mismatch(self):
+        """Test scoring with column mismatch."""
+        gt_path = self.create_ground_truth_csv()
+        scorer = Scorer(ground_truth_path=gt_path)
         
-        # Should return valid score and feedback
+        # Create CSV with different columns
+        data = pd.DataFrame({
+            'X': [1, 2, 3],
+            'Y': [4, 5, 6],
+            'Z': [7, 8, 9]
+        })
+        csv_path = self.create_csv_file(data=data)
+        
+        score, feedback = scorer.score_from_csv_path(csv_path)
+        
+        # Should get 0 for column mismatch
+        self.assertEqual(score, 0.0)
+        self.assertIn("Error comparing with ground truth", feedback)
+    
+    def test_basic_csv_validation(self):
+        """Test basic CSV validation when no ground truth exists."""
+        # Create CSV
+        csv_path = self.create_csv_file()
+        
+        score, feedback = self.scorer.score_from_csv_path(csv_path)
+        
+        # Should get points for valid CSV
+        self.assertGreater(score, 0.0)
+        self.assertIn("rows and", feedback)
+    
+    def test_csv_with_null_values(self):
+        """Test CSV with null values."""
+        data = pd.DataFrame({
+            'A': [1, None, 3],
+            'B': [4, 5, 6]
+        })
+        csv_path = self.create_csv_file(data=data)
+        
+        score, feedback = self.scorer.score_from_csv_path(csv_path)
+        
+        # Should still process but may note null values
         self.assertIsInstance(score, float)
         self.assertIsInstance(feedback, str)
-    
-    def test_score_custom(self):
-        """Test custom scoring function."""
-        submission_data = {"predictions": [1, 2, 3]}
-        scoring_criteria = {"threshold": 0.9}
-        
-        score, feedback = self.scorer.score_custom(submission_data, scoring_criteria)
-        
-        # Should return valid score and feedback
-        self.assertIsInstance(score, float)
-        self.assertIsInstance(feedback, str)
-
-
-class TestScorerHelperFunctions(unittest.TestCase):
-    """Test cases for scorer helper functions."""
-    
-    def test_simple_accuracy_scorer_perfect(self):
-        """Test accuracy scorer with perfect predictions."""
-        predictions = [1, 2, 3, 4, 5]
-        ground_truth = [1, 2, 3, 4, 5]
-        
-        accuracy = simple_accuracy_scorer(predictions, ground_truth)
-        self.assertEqual(accuracy, 100.0)
-    
-    def test_simple_accuracy_scorer_partial(self):
-        """Test accuracy scorer with partial accuracy."""
-        predictions = [1, 2, 3, 4, 5]
-        ground_truth = [1, 2, 0, 0, 5]  # 3 out of 5 correct
-        
-        accuracy = simple_accuracy_scorer(predictions, ground_truth)
-        self.assertEqual(accuracy, 60.0)
-    
-    def test_simple_accuracy_scorer_zero(self):
-        """Test accuracy scorer with zero accuracy."""
-        predictions = [1, 2, 3]
-        ground_truth = [4, 5, 6]
-        
-        accuracy = simple_accuracy_scorer(predictions, ground_truth)
-        self.assertEqual(accuracy, 0.0)
-    
-    def test_simple_accuracy_scorer_length_mismatch(self):
-        """Test accuracy scorer with mismatched lengths."""
-        predictions = [1, 2, 3]
-        ground_truth = [1, 2]
-        
-        accuracy = simple_accuracy_scorer(predictions, ground_truth)
-        self.assertEqual(accuracy, 0.0)
-    
-    def test_mse_scorer_perfect(self):
-        """Test MSE scorer with perfect predictions."""
-        import numpy as np
-        predictions = [1.0, 2.0, 3.0]
-        ground_truth = [1.0, 2.0, 3.0]
-        
-        mse = mse_scorer(predictions, ground_truth)
-        self.assertEqual(mse, 0.0)
-    
-    def test_mse_scorer_with_error(self):
-        """Test MSE scorer with some error."""
-        import numpy as np
-        predictions = [1.0, 2.0, 3.0]
-        ground_truth = [1.5, 2.5, 3.5]
-        
-        mse = mse_scorer(predictions, ground_truth)
-        # MSE = ((0.5)^2 + (0.5)^2 + (0.5)^2) / 3 = 0.25
-        # Returned value is -MSE (negative)
-        self.assertAlmostEqual(mse, -0.25, places=5)
-    
-    def test_mse_scorer_length_mismatch(self):
-        """Test MSE scorer with mismatched lengths."""
-        predictions = [1.0, 2.0, 3.0]
-        ground_truth = [1.0, 2.0]
-        
-        mse = mse_scorer(predictions, ground_truth)
-        self.assertEqual(mse, -float('inf'))
 
 
 if __name__ == '__main__':
