@@ -78,8 +78,7 @@ def main():
     with st.sidebar:
 
         st.image(
-            "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard",
-            width="stretch"
+            "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard"
         )
 
         st.markdown("### Navigation")
