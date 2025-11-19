@@ -1,5 +1,4 @@
-name: Run Tests
-
+name: Unittest
 on:
   pull_request:
     branches:
