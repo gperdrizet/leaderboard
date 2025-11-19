@@ -88,22 +88,23 @@ class NotebookRunner:
                 )
             
             return True, output_path, None
-            
+
         except TimeoutException as e:
             error_msg = str(e)
             return False, None, error_msg
-            
+
         except pm.PapermillExecutionError as e:
             # Notebook executed but raised an error
             error_msg = f"Notebook execution error: {str(e)}"
             # Still save the output notebook to see where it failed
             return False, output_path if os.path.exists(output_path) else None, error_msg
-            
+
         except Exception as e:
             # Other errors (file not found, invalid notebook format, etc.)
             error_msg = f"Error executing notebook: {str(e)}\n{traceback.format_exc()}"
             return False, None, error_msg
-    
+
+
     def execute_notebook_safe(
         self,
         notebook_path: str,
@@ -124,15 +125,16 @@ class NotebookRunner:
                 'execution_time': float (seconds)
             }
         """
+
         start_time = datetime.now()
-        
+
         success, output_path, error_message = self.execute_notebook(
             notebook_path,
             parameters
         )
-        
+
         execution_time = (datetime.now() - start_time).total_seconds()
-        
+
         return {
             'success': success,
             'output_path': output_path,
@@ -140,6 +142,7 @@ class NotebookRunner:
             'execution_time': execution_time
         }
     
+
     def get_notebook_outputs(self, executed_notebook_path: str) -> Optional[Dict]:
         """Extract outputs from an executed notebook.
         
@@ -149,6 +152,7 @@ class NotebookRunner:
         Returns:
             Dictionary of outputs or None if extraction fails
         """
+
         try:
             import nbformat
             
@@ -166,6 +170,7 @@ class NotebookRunner:
             print(f"Error extracting outputs: {e}")
             return None
     
+
     def get_notebook_namespace(self, executed_notebook_path: str) -> Optional[Dict]:
         """Extract the final namespace/variables from an executed notebook.
         
@@ -178,6 +183,7 @@ class NotebookRunner:
         Returns:
             Dictionary of variables or None if extraction fails
         """
+
         try:
             # This would require scrapbook for proper implementation
             # For now, return None and recommend using scrapbook
