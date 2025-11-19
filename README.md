@@ -1,3 +1,15 @@
+---
+title: Leaderboard
+colorFrom: yellow
+emoji: 🏆
+colorTo: gray
+sdk: streamlit
+sdk_version: "1.25.0"
+app_file: app.py
+pinned: true
+short_description: Data science/ML notebook leaderboard
+---
+
 # Notebook Leaderboard
 
 A Kaggle-style leaderboard application for Jupyter notebook submissions, built with Streamlit and designed to run on HuggingFace Spaces.

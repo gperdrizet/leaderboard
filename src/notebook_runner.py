@@ -160,7 +160,7 @@ class NotebookRunner:
             'error_message': error_message,
             'execution_time': execution_time
         }
-
+    
 
     def get_notebook_outputs(self, executed_notebook_path: str) -> Optional[Dict]:
         """Extract outputs from an executed notebook.
@@ -189,7 +189,7 @@ class NotebookRunner:
         except Exception as e:
             print(f"Error extracting outputs: {e}")
             return None
-
+    
 
     def get_notebook_namespace(self, executed_notebook_path: str) -> Optional[Dict]:
         """Extract the final namespace/variables from an executed notebook.
