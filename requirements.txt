@@ -3,4 +3,4 @@ nbformat>=5.9.0
 numpy>=1.24.0
 papermill>=2.4.0
 pandas>=2.0.0
-streamlit>=1.28.0
+streamlit>=1.25.0
