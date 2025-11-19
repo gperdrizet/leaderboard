@@ -2,7 +2,7 @@
 title: Leaderboard
 emoji: {{emoji}}
 colorFrom: yellow
-colorTo: grey
+colorTo: gray
 sdk: docker
 python_version: 3.12
 sdk_version: "{{sdkVersion}}"
