@@ -79,7 +79,7 @@ def main():
 
         st.image(
             "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard",
-            use_column_width=True
+            width="stretch"
         )
 
         st.markdown("### Navigation")

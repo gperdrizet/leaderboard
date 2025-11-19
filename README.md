@@ -4,7 +4,7 @@ colorFrom: yellow
 emoji: 🏆
 colorTo: gray
 sdk: streamlit
-sdk_version: "1.25.0"
+sdk_version: "1.51.0"
 app_file: app.py
 pinned: true
 short_description: Data science/ML notebook leaderboard
