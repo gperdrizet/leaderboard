@@ -79,7 +79,7 @@ def main():
 
         st.image(
             "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard",
-            use_container_width=True
+            use_column_width=True
         )
 
         st.markdown("### Navigation")
@@ -146,7 +146,7 @@ def show_submission_page():
         )
 
         # Submit button
-        if st.button("Submit", type="primary", use_container_width=True):
+        if st.button("Submit", type="primary"):
 
             if not username:
                 st.error("Please enter a username")
@@ -286,7 +286,6 @@ def show_leaderboard_page():
         # Display leaderboard
         st.dataframe(
             df_display,
-            use_container_width=True,
             hide_index=True,
             column_config={
                 "Rank": st.column_config.NumberColumn("Rank", width="small"),
@@ -300,7 +299,7 @@ def show_leaderboard_page():
         # Recent activity
         st.markdown("### Recent Submissions")
         recent_df = st.session_state.leaderboard_manager.get_recent_submissions_df(limit=10)
-        st.dataframe(recent_df, use_container_width=True, hide_index=True)
+        st.dataframe(recent_df, hide_index=True)
 
 
 def show_stats_page():
@@ -348,7 +347,7 @@ def show_stats_page():
                 # Submission history
                 st.markdown("### Submission History")
                 history_df = st.session_state.leaderboard_manager.get_submission_history_df(username)
-                st.dataframe(history_df, use_container_width=True, hide_index=True)
+                st.dataframe(history_df, hide_index=True)
 
 
 def show_about_page():
