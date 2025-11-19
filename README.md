@@ -3,7 +3,6 @@ title: Leaderboard
 colorFrom: yellow
 emoji: 🏆
 colorTo: gray
-python_version: 3.12
 sdk: streamlit
 sdk_version: "{{sdkVersion}}"
 app_file: app.py
