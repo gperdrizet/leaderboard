@@ -1,14 +1,14 @@
 ---
 title: Leaderboard
-emoji: {{emoji}}
 colorFrom: yellow
+emoji: 🏆
 colorTo: gray
 sdk: docker
 python_version: 3.12
 sdk_version: "{{sdkVersion}}"
 app_file: app.py
 pinned: true
-short_description: Kaggle-style notebook submission and leaderboard for data science and Ml notebooks
+short_description: Data science/ML notebook leaderboard
 ---
 
 # Notebook Leaderboard
