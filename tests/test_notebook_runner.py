@@ -5,7 +5,7 @@ import os
 import tempfile
 import json
 import shutil
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch #, MagicMock
 
 from src.notebook_runner import NotebookRunner, TimeoutException
 
@@ -115,7 +115,15 @@ class TestNotebookRunner(unittest.TestCase):
     def test_execute_notebook_execution_error(self, mock_execute):
         """Test notebook execution with PapermillExecutionError."""
         import papermill as pm
-        mock_execute.side_effect = pm.PapermillExecutionError("Cell error", None, None, None)
+        # PapermillExecutionError requires: cell_index, exec_count, source, ename, evalue, traceback
+        mock_execute.side_effect = pm.PapermillExecutionError(
+            cell_index=0,
+            exec_count=1,
+            source="print('test')",
+            ename="ValueError",
+            evalue="Test error",
+            traceback=["Traceback line 1"]
+        )
         
         notebook_path = self.create_simple_notebook()
         success, output_path, error = self.runner.execute_notebook(notebook_path)
