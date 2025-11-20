@@ -12,9 +12,14 @@ short_description: Data science/ML notebook leaderboard
 
 # Notebook Leaderboard
 
-[![Unittest](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml) [![HF Spaces Deployment](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml)
+[![Unit Tests](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml) [![HF Spaces Deployment](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml)
 
 A Kaggle-style leaderboard application for Jupyter notebook submissions, built with Streamlit and designed to run on HuggingFace Spaces.
+
+The currently deployed instance is scoring a feature engineering activity notebook for AI/ML & data science boot camp students:
+
+1. Leaderboard on [HuggingFace spaces](https://huggingface.co/spaces/gperdrizet/leaderboard)
+2. Template [submission notebook](https://github.com/gperdrizet/FSA_devops/blob/main/notebooks/unit2/lesson_16/Lesson_16_activity.ipynb)
 
 ## Features
 
