@@ -32,13 +32,13 @@ wheels/
 *.ipynb_checkpoints/
 
 # Data directories (except structure)
-data/submissions/*
-data/outputs/*
-data/*.db
+# data/submissions/*
+# data/outputs/*
+# data/*.db
 
 # Keep directory structure
-!data/submissions/.gitkeep
-!data/outputs/.gitkeep
+# !data/submissions/.gitkeep
+# !data/outputs/.gitkeep
 
 # Streamlit
 .streamlit/secrets.toml
