@@ -7,7 +7,9 @@ specific assignment requirements.
 
 import os
 import pandas as pd
-from typing import Optional, Tuple, Any
+from typing import Optional, Any
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score
 
 
 class Scorer:
@@ -37,7 +39,7 @@ class Scorer:
         self,
         executed_notebook_path: str,
         output_data: Optional[Any] = None
-    ) -> Tuple[float, str]:
+    ) -> float:
         """Score an executed notebook based on its CSV output.
         
         This function looks for a CSV file in the same directory as the 
@@ -48,116 +50,155 @@ class Scorer:
             output_data: Optional (not used, kept for compatibility)
             
         Returns:
-            Tuple of (score, feedback_message)
+            Score as a float
         """
         try:
             # Get the directory containing the notebook
             notebook_dir = os.path.dirname(executed_notebook_path)
             
-            # Look for CSV file in the output directory
-            # Assume the CSV has a similar name to the notebook or is named 'output.csv'
-            csv_files = [f for f in os.listdir(notebook_dir) if f.endswith('.csv')]
+            # Also check the current working directory (where notebooks execute from)
+            cwd = os.getcwd()
+            
+            # Exclude ground truth and other system CSVs
+            exclude_files = ['california_housing.csv']
+            
+            # Look for CSV file in multiple locations
+            csv_files = []
+            
+            # First, check the notebook's directory
+            if os.path.exists(notebook_dir):
+                csv_files = [
+                    os.path.join(notebook_dir, f) 
+                    for f in os.listdir(notebook_dir) 
+                    if f.endswith('.csv') and f not in exclude_files
+                ]
+            
+            # If not found, check the current working directory
+            if not csv_files and os.path.exists(cwd):
+                csv_files = [
+                    os.path.join(cwd, f) 
+                    for f in os.listdir(cwd) 
+                    if f.endswith('.csv') and f not in exclude_files and 'data/' not in f
+                ]
+                if csv_files:
+                    print(f"Found CSV file(s) in working directory: {cwd}")
             
             if not csv_files:
-                return 0.0, "No CSV file found in notebook output directory"
+                print(f"ERROR: No CSV file found in notebook directory: {notebook_dir}")
+                print(f"Also checked working directory: {cwd}")
+                print(f"Files in notebook dir: {os.listdir(notebook_dir) if os.path.exists(notebook_dir) else 'N/A'}")
+                print(f"CSV files in working dir (excluding system files): {[f for f in os.listdir(cwd) if f.endswith('.csv') and f not in exclude_files] if os.path.exists(cwd) else 'N/A'}")
+                return 0.0
             
             # Use the first CSV file found (or implement custom logic to find the right one)
-            csv_path = os.path.join(notebook_dir, csv_files[0])
+            csv_path = csv_files[0]
+            print(f"Found CSV file: {csv_path}")
             
             # Read the submission CSV
             submission_df = pd.read_csv(csv_path)
+            print(f"CSV loaded successfully. Shape: {submission_df.shape}, Columns: {list(submission_df.columns)}")
             
             # Score based on ground truth if available
             if self.ground_truth is not None:
-                score, feedback = self._score_against_ground_truth(submission_df)
+                print("Using ground truth for scoring")
+                score = self._score_against_ground_truth(submission_df)
             else:
                 # Basic scoring if no ground truth available
-                score, feedback = self._basic_csv_validation(submission_df)
+                print("Using basic CSV validation for scoring")
+                score = self._basic_csv_validation(submission_df)
             
-            return score, feedback
+            print(f"Final score: {score}")
+            return score
 
         except Exception as e:
-            return 0.0, f"Error scoring notebook: {str(e)}"
+            print(f"ERROR in score_notebook: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return 0.0
 
-    def _score_against_ground_truth(self, submission_df: pd.DataFrame) -> Tuple[float, str]:
+    def _score_against_ground_truth(self, submission_df: pd.DataFrame) -> float:
         """Score submission DataFrame against ground truth.
         
         Args:
             submission_df: DataFrame from submission CSV
             
         Returns:
-            Tuple of (score, feedback_message)
+            Score as a float
         """
         try:
-            score = 0.0
-            feedback_parts = []
+            print(f"Ground truth shape: {self.ground_truth.shape}, columns: {list(self.ground_truth.columns)}")
+            print(f"Submission shape: {submission_df.shape}, columns: {list(submission_df.columns)}")
             
-            # Check if DataFrames have same shape
-            if submission_df.shape != self.ground_truth.shape:
-                return 0.0, f"CSV shape mismatch. Expected {self.ground_truth.shape}, got {submission_df.shape}"
-            
-            # Check if columns match
-            if not all(submission_df.columns == self.ground_truth.columns):
-                feedback_parts.append("Warning: Column names don't match exactly")
-            
-            # Calculate accuracy (percentage of matching values)
-            # This is a simple example - customize based on your needs
-            total_cells = submission_df.size
-            matching_cells = (submission_df == self.ground_truth).sum().sum()
-            accuracy = matching_cells / total_cells
-            
-            score = accuracy * 100  # Convert to 0-100 scale
-            feedback_parts.append(f"Accuracy: {accuracy:.2%}")
-            feedback_parts.append(f"Matching cells: {matching_cells}/{total_cells}")
-            
-            feedback = " | ".join(feedback_parts)
-            return score, feedback
+            model = LinearRegression()
+
+            # Evaluate on original dataset
+            scores_original = cross_val_score(
+                model,
+                self.ground_truth.drop('MedHouseVal', axis=1),
+                self.ground_truth['MedHouseVal'],
+                cv=10,
+                scoring='r2'
+            )
+
+            # Evaluate on engineered dataset
+            scores_engineered = cross_val_score(
+                model,
+                submission_df.drop('MedHouseVal', axis=1),
+                submission_df['MedHouseVal'],
+                cv=10,
+                scoring='r2'
+            )
+
+            engineered_mean = scores_engineered.mean()
+            original_mean = scores_original.mean()
+            mean_improvement = ((engineered_mean - original_mean) / original_mean) * 100
+
+            print(f"Original Mean R2: {original_mean:.4f}, Engineered Mean R2: {engineered_mean:.4f}, Improvement: {mean_improvement:.2f}%")
+
+            return mean_improvement
             
         except Exception as e:
-            return 0.0, f"Error comparing with ground truth: {str(e)}"
+            print(f"ERROR in _score_against_ground_truth: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return 0.0
 
-    def _basic_csv_validation(self, submission_df: pd.DataFrame) -> Tuple[float, str]:
+    def _basic_csv_validation(self, submission_df: pd.DataFrame) -> float:
         """Basic validation when no ground truth is available.
         
         Args:
             submission_df: DataFrame from submission CSV
             
         Returns:
-            Tuple of (score, feedback_message)
+            Score as a float
         """
         score = 0.0
-        feedback_parts = []
         
         # Check if CSV has content
         if submission_df.empty:
-            return 0.0, "CSV file is empty"
+            return 0.0
         
         # Award points for having data
         score += 50.0
-        feedback_parts.append(f"CSV contains {len(submission_df)} rows and {len(submission_df.columns)} columns")
         
         # Check for null values
         null_count = submission_df.isnull().sum().sum()
         if null_count == 0:
             score += 25.0
-            feedback_parts.append("No null values found")
-        else:
-            feedback_parts.append(f"Warning: {null_count} null values found")
         
         # Basic format check - award remaining points
         score += 25.0
         
-        feedback = " | ".join(feedback_parts)
-        return score, feedback
+        return score
 
-    def score_from_csv_path(self, csv_path: str) -> Tuple[float, str]:
+    def score_from_csv_path(self, csv_path: str) -> float:
         """Score a CSV file directly by path.
         
         Args:
             csv_path: Path to the CSV file
             
         Returns:
-            Tuple of (score, feedback_message)
+            Score as a float
         """
         try:
             submission_df = pd.read_csv(csv_path)
@@ -168,4 +209,4 @@ class Scorer:
                 return self._basic_csv_validation(submission_df)
                 
         except Exception as e:
-            return 0.0, f"Error reading CSV: {str(e)}"
+            return 0.0

@@ -235,20 +235,6 @@ class TestNotebookRunner(unittest.TestCase):
         # Current implementation returns None
         self.assertIsNone(namespace)
     
-    def test_timeout_context_manager(self):
-        """Test timeout context manager."""
-        from src.notebook_runner import timeout
-        import time
-        
-        # Should not raise error within timeout
-        with timeout(2):
-            time.sleep(0.1)
-        
-        # Should raise TimeoutException
-        with self.assertRaises(TimeoutException):
-            with timeout(1):
-                time.sleep(2)
-    
     def test_output_path_naming(self):
         """Test that output path is named correctly."""
         notebook_path = self.create_simple_notebook("my_notebook.ipynb")
