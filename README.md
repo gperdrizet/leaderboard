@@ -21,6 +21,7 @@ The currently deployed instance is scoring a feature engineering activity notebo
 1. Leaderboard on [HuggingFace spaces](https://huggingface.co/spaces/gperdrizet/leaderboard)
 2. Template [submission notebook](https://github.com/gperdrizet/FSA_devops/blob/main/notebooks/unit2/lesson_16/Lesson_16_activity.ipynb)
 
+
 ## Features
 
 - **Upload Notebooks**: Students can upload Jupyter notebooks through a web interface
@@ -29,6 +30,7 @@ The currently deployed instance is scoring a feature engineering activity notebo
 - **Live Leaderboard**: Public leaderboard showing rankings in real-time
 - **User Statistics**: Track individual submission history and performance
 - **Validation**: Built-in validation for file format, size, and structure
+
 
 ## Quick Start
 
@@ -48,7 +50,6 @@ streamlit run app.py
 
 4. **Open your browser** to `http://localhost:8501`
 
-
 ### Deployment on HuggingFace Spaces
 
 1. **Create a new Space** on [HuggingFace](https://huggingface.co/spaces)
@@ -57,6 +58,7 @@ streamlit run app.py
 2. **Upload all files** from this repository to your Space
 
 3. **The app will automatically deploy** and be accessible at your Space's URL
+
 
 ## Project Structure
 
@@ -81,6 +83,7 @@ streamlit run app.py
     ├── outputs/              # Execution results
     └── leaderboard.db        # SQLite database
 ```
+
 
 ## Configuration
 
@@ -115,6 +118,7 @@ validator = NotebookValidator(max_file_size_mb=10.0)
 ### Streamlit Configuration
 
 Modify `.streamlit/config.toml` to customize the app appearance and behavior.
+
 
 ## Usage
 
@@ -187,6 +191,7 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
 - **Execution Time**: May have timeout limits for long-running processes
 - **Resources**: Limited CPU/RAM (adjust timeout accordingly)
 
+
 ## Troubleshooting
 
 ### Notebooks fail to execute
@@ -207,6 +212,7 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
 - Check SQLite permissions
 - For HuggingFace Spaces, ensure persistent storage is configured
 
+
 ## Dependencies
 
 - **Streamlit**: Web interface framework
@@ -214,6 +220,7 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
 - **Papermill**: Notebook execution
 - **nbformat/nbconvert**: Notebook parsing
 - **SQLite3**: Database (built-in with Python)
+
 
 ## Contributing
 
@@ -225,6 +232,9 @@ Feel free to customize this application for your specific needs. Some areas for 
 - Performance optimizations
 - UI/UX improvements
 
+
 ## License
 
-This project is open source and available for educational use.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](https://github.com/gperdrizet/leaderboard/blob/main/LICENSE) file for full details.
+
+In summary, you are free to use, modify, and distribute this software, but any derivative works must also be released under the GPL-3.0 license.
