@@ -1,6 +1,10 @@
+ipykernel
+matplotlib
 nbconvert
 nbformat
 numpy
 papermill
 pandas
+scikit-learn
+scipy
 streamlit==1.51.0

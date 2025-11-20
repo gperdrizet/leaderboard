@@ -30,7 +30,7 @@ st.set_page_config(
 if 'db' not in st.session_state:
     st.session_state.db = Database("data/leaderboard.db")
     st.session_state.notebook_runner = NotebookRunner("data/outputs", timeout_seconds=300)
-    st.session_state.scorer = Scorer()
+    st.session_state.scorer = Scorer(ground_truth_path="data/california_housing.csv")
     st.session_state.leaderboard_manager = LeaderboardManager(st.session_state.db)
 
 # Custom CSS
@@ -85,7 +85,7 @@ def main():
 
         page = st.radio(
             "Select Page",
-            ["Home & Submit", "Leaderboard", "My Stats", "About"],
+            ["Home & Submit", "Leaderboard", "User Stats", "About"],
             label_visibility="collapsed"
         )
 
@@ -105,7 +105,7 @@ def main():
     elif page == "Leaderboard":
         show_leaderboard_page()
 
-    elif page == "My Stats":
+    elif page == "User Stats":
         show_stats_page()
 
     else:
@@ -220,7 +220,7 @@ def process_submission(username: str, uploaded_file):
 
                 # Score the notebook
                 with st.spinner("Scoring your submission..."):
-                    score, feedback = st.session_state.scorer.score_notebook(
+                    score = st.session_state.scorer.score_notebook(
                         result['output_path']
                     )
 
@@ -248,9 +248,6 @@ def process_submission(username: str, uploaded_file):
                         if rank_info:
                             rank, _ = rank_info
                             st.metric("Your Rank", f"#{rank}")
-
-                    if feedback:
-                        st.info(f"**Feedback:** {feedback}")
             else:
 
                 st.error(f"Execution failed: {result['error_message']}")
@@ -304,9 +301,9 @@ def show_leaderboard_page():
 def show_stats_page():
     """Display user statistics page."""
 
-    st.markdown('<div class="sub-header">My Statistics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">User Statistics</div>', unsafe_allow_html=True)
 
-    username = st.text_input("Enter your username to view stats", placeholder="Username")
+    username = st.text_input("Enter a username to view their stats", placeholder="Username")
 
     if username:
         if st.button("View Stats"):
