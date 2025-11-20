@@ -12,7 +12,15 @@ short_description: Data science/ML notebook leaderboard
 
 # Notebook Leaderboard
 
+[![Unit Tests](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml) [![HF Spaces Deployment](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml)
+
 A Kaggle-style leaderboard application for Jupyter notebook submissions, built with Streamlit and designed to run on HuggingFace Spaces.
+
+The currently deployed instance is scoring a feature engineering activity notebook for AI/ML & data science boot camp students:
+
+1. Leaderboard on [HuggingFace spaces](https://huggingface.co/spaces/gperdrizet/leaderboard)
+2. Template [submission notebook](https://github.com/gperdrizet/FSA_devops/blob/main/notebooks/unit2/lesson_16/Lesson_16_activity.ipynb)
+
 
 ## Features
 
@@ -22,6 +30,7 @@ A Kaggle-style leaderboard application for Jupyter notebook submissions, built w
 - **Live Leaderboard**: Public leaderboard showing rankings in real-time
 - **User Statistics**: Track individual submission history and performance
 - **Validation**: Built-in validation for file format, size, and structure
+
 
 ## Quick Start
 
@@ -34,17 +43,7 @@ A Kaggle-style leaderboard application for Jupyter notebook submissions, built w
 pip install -r requirements.txt
 ```
 
-3. **Install Jupyter kernel** (required for notebook execution)
-```bash
-python -m ipykernel install --user --name python3 --display-name "Python 3"
-```
-
-Or use the provided script:
-```bash
-python install_kernel.py
-```
-
-4. **Run the application**
+3. **Run the application**
 ```bash
 streamlit run app.py
 ```
@@ -59,6 +58,7 @@ streamlit run app.py
 2. **Upload all files** from this repository to your Space
 
 3. **The app will automatically deploy** and be accessible at your Space's URL
+
 
 ## Project Structure
 
@@ -83,6 +83,7 @@ streamlit run app.py
     ├── outputs/              # Execution results
     └── leaderboard.db        # SQLite database
 ```
+
 
 ## Configuration
 
@@ -118,6 +119,7 @@ validator = NotebookValidator(max_file_size_mb=10.0)
 
 Modify `.streamlit/config.toml` to customize the app appearance and behavior.
 
+
 ## Usage
 
 ### For Students
@@ -148,51 +150,6 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
    ```python
    scorer = Scorer(ground_truth_path="path/to/ground_truth.json")
    ```
-
-#### Using Scrapbook for Variable Extraction
-
-For better variable extraction from notebooks, students can use [scrapbook](https://github.com/nteract/scrapbook):
-
-In student notebooks:
-```python
-import scrapbook as sb
-
-# Record outputs
-sb.glue("accuracy", 0.95)
-sb.glue("predictions", my_predictions)
-```
-
-In `src/scorer.py`:
-```python
-import scrapbook as sb
-
-# Read notebook
-notebook = sb.read_notebook(executed_notebook_path)
-accuracy = notebook.scraps['accuracy'].data
-predictions = notebook.scraps['predictions'].data
-```
-
-#### Admin Functions
-
-Access admin functions programmatically:
-
-```python
-from src.database import Database
-from src.leaderboard import LeaderboardManager
-
-db = Database()
-lm = LeaderboardManager(db)
-
-# Clear all data (use with caution!)
-lm.clear_all_data()
-
-# Get all submissions
-submissions = db.get_all_submissions()
-
-# Export leaderboard
-leaderboard_df = lm.get_leaderboard_df()
-leaderboard_df.to_csv("leaderboard_export.csv")
-```
 
 ## Technical Details
 
@@ -234,6 +191,7 @@ leaderboard_df.to_csv("leaderboard_export.csv")
 - **Execution Time**: May have timeout limits for long-running processes
 - **Resources**: Limited CPU/RAM (adjust timeout accordingly)
 
+
 ## Troubleshooting
 
 ### Notebooks fail to execute
@@ -254,6 +212,7 @@ leaderboard_df.to_csv("leaderboard_export.csv")
 - Check SQLite permissions
 - For HuggingFace Spaces, ensure persistent storage is configured
 
+
 ## Dependencies
 
 - **Streamlit**: Web interface framework
@@ -261,6 +220,7 @@ leaderboard_df.to_csv("leaderboard_export.csv")
 - **Papermill**: Notebook execution
 - **nbformat/nbconvert**: Notebook parsing
 - **SQLite3**: Database (built-in with Python)
+
 
 ## Contributing
 
@@ -272,6 +232,9 @@ Feel free to customize this application for your specific needs. Some areas for 
 - Performance optimizations
 - UI/UX improvements
 
+
 ## License
 
-This project is open source and available for educational use.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](https://github.com/gperdrizet/leaderboard/blob/main/LICENSE) file for full details.
+
+In summary, you are free to use, modify, and distribute this software, but any derivative works must also be released under the GPL-3.0 license.
