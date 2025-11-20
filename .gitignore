@@ -40,9 +40,9 @@ wheels/
 # !data/submissions/.gitkeep
 # !data/outputs/.gitkeep
 
-*.db
-*.csv
-!/data/california_housing.csv
+# *.db
+# *.csv
+# !/data/california_housing.csv
 
 # Streamlit
 .streamlit/secrets.toml
