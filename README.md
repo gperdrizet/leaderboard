@@ -12,6 +12,8 @@ short_description: Data science/ML notebook leaderboard
 
 # Notebook Leaderboard
 
+[![Unittest](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/test.yml) [![HF Spaces Deployment](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml/badge.svg)](https://github.com/gperdrizet/leaderboard/actions/workflows/deploy-to-hf.yml)
+
 A Kaggle-style leaderboard application for Jupyter notebook submissions, built with Streamlit and designed to run on HuggingFace Spaces.
 
 ## Features
@@ -34,22 +36,13 @@ A Kaggle-style leaderboard application for Jupyter notebook submissions, built w
 pip install -r requirements.txt
 ```
 
-3. **Install Jupyter kernel** (required for notebook execution)
-```bash
-python -m ipykernel install --user --name python3 --display-name "Python 3"
-```
-
-Or use the provided script:
-```bash
-python install_kernel.py
-```
-
-4. **Run the application**
+3. **Run the application**
 ```bash
 streamlit run app.py
 ```
 
 4. **Open your browser** to `http://localhost:8501`
+
 
 ### Deployment on HuggingFace Spaces
 
@@ -148,51 +141,6 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
    ```python
    scorer = Scorer(ground_truth_path="path/to/ground_truth.json")
    ```
-
-#### Using Scrapbook for Variable Extraction
-
-For better variable extraction from notebooks, students can use [scrapbook](https://github.com/nteract/scrapbook):
-
-In student notebooks:
-```python
-import scrapbook as sb
-
-# Record outputs
-sb.glue("accuracy", 0.95)
-sb.glue("predictions", my_predictions)
-```
-
-In `src/scorer.py`:
-```python
-import scrapbook as sb
-
-# Read notebook
-notebook = sb.read_notebook(executed_notebook_path)
-accuracy = notebook.scraps['accuracy'].data
-predictions = notebook.scraps['predictions'].data
-```
-
-#### Admin Functions
-
-Access admin functions programmatically:
-
-```python
-from src.database import Database
-from src.leaderboard import LeaderboardManager
-
-db = Database()
-lm = LeaderboardManager(db)
-
-# Clear all data (use with caution!)
-lm.clear_all_data()
-
-# Get all submissions
-submissions = db.get_all_submissions()
-
-# Export leaderboard
-leaderboard_df = lm.get_leaderboard_df()
-leaderboard_df.to_csv("leaderboard_export.csv")
-```
 
 ## Technical Details
 
