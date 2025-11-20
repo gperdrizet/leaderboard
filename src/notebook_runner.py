@@ -1,45 +1,19 @@
 """Notebook execution module using papermill."""
 
 import os
-import signal
-import tempfile
 import traceback
 from datetime import datetime
 from typing import Optional, Tuple, Dict
-from contextlib import contextmanager
 
 import nbformat
 import papermill as pm
+from jupyter_client.kernelspec import KernelSpecManager
 
 
 class TimeoutException(Exception):
     """Exception raised when notebook execution times out."""
 
     pass
-
-
-@contextmanager
-def timeout(seconds: int):
-    """Context manager for timing out operations.
-    
-    Args:
-        seconds: Number of seconds before timeout
-    """
-
-    def timeout_handler(signum, frame):
-        raise TimeoutException(f"Execution timed out after {seconds} seconds")
-
-    # Set the signal handler and alarm
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
-
-    try:
-        yield
-
-    finally:
-
-        # Disable the alarm
-        signal.alarm(0)
 
 
 class NotebookRunner:
@@ -56,6 +30,7 @@ class NotebookRunner:
         self.output_dir = output_dir
         self.timeout_seconds = timeout_seconds
         self._ensure_output_dir()
+        self.kernel_name = self._detect_kernel()
 
 
     def _ensure_output_dir(self):
@@ -63,6 +38,38 @@ class NotebookRunner:
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
+
+    def _detect_kernel(self) -> Optional[str]:
+        """Detect the best available Python kernel.
+        
+        Returns:
+            Name of the kernel to use, or None to use notebook's default
+        """
+        try:
+            ksm = KernelSpecManager()
+            available_kernels = ksm.get_all_specs()
+            
+            # Preferred kernel names in order of preference
+            preferred_kernels = ['python3', 'python', 'python2', 'ir']
+            
+            for kernel in preferred_kernels:
+                if kernel in available_kernels:
+                    return kernel
+            
+            # If none of the preferred kernels found, use the first available
+            if available_kernels:
+                first_kernel = list(available_kernels.keys())[0]
+                print(f"Using kernel: {first_kernel}")
+                return first_kernel
+            
+            # Return None to let papermill use the notebook's kernel metadata
+            print("Warning: No kernels found, will use notebook's default kernel")
+            return None
+            
+        except Exception as e:
+            print(f"Warning: Could not detect kernel: {e}")
+            # Return None to let papermill use the notebook's kernel metadata
+            return None
 
 
     def execute_notebook(
@@ -90,36 +97,33 @@ class NotebookRunner:
         )
 
         try:
-
-            # Execute notebook with timeout
-            with timeout(self.timeout_seconds):
-
-                pm.execute_notebook(
-                    notebook_path,
-                    output_path,
-                    parameters=parameters or {},
-                    kernel_name='python3',
-                    progress_bar=False
-                )
+            # Prepare execution parameters
+            exec_params = {
+                'input_path': notebook_path,
+                'output_path': output_path,
+                'parameters': parameters or {},
+                'progress_bar': False,
+                'execution_timeout': self.timeout_seconds,  # Timeout per cell
+                'timeout': self.timeout_seconds * 10  # Overall timeout
+            }
+            
+            # Only set kernel_name if one was detected
+            if self.kernel_name is not None:
+                exec_params['kernel_name'] = self.kernel_name
+            
+            # Execute notebook with timeout using papermill's built-in timeout
+            pm.execute_notebook(**exec_params)
 
             return True, output_path, None
 
-        except TimeoutException as e:
-
-            error_msg = str(e)
-            return False, None, error_msg
-
         except pm.PapermillExecutionError as e:
-
             # Notebook executed but raised an error
             error_msg = f"Notebook execution error: {str(e)}"
-
             # Still save the output notebook to see where it failed
             return False, output_path if os.path.exists(output_path) else None, error_msg
 
         except Exception as e:
-
-            # Other errors (file not found, invalid notebook format, etc.)
+            # Other errors (file not found, invalid notebook format, timeout, etc.)
             error_msg = f"Error executing notebook: {str(e)}\n{traceback.format_exc()}"
             return False, None, error_msg
 

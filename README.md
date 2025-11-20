@@ -34,7 +34,17 @@ A Kaggle-style leaderboard application for Jupyter notebook submissions, built w
 pip install -r requirements.txt
 ```
 
-3. **Run the application**
+3. **Install Jupyter kernel** (required for notebook execution)
+```bash
+python -m ipykernel install --user --name python3 --display-name "Python 3"
+```
+
+Or use the provided script:
+```bash
+python install_kernel.py
+```
+
+4. **Run the application**
 ```bash
 streamlit run app.py
 ```
