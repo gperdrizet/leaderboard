@@ -17,4 +17,4 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.LEADERBOARD_GITHUB_DEPLOYMENT }}
-        run: git push https://gperdrizet:$HF_TOKEN@huggingface.co/spaces/gperdrizet/leaderboard main
+        run: git push --force https://gperdrizet:$HF_TOKEN@huggingface.co/spaces/gperdrizet/leaderboard main
