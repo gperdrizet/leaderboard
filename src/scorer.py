@@ -56,11 +56,20 @@ class Scorer:
             # Get the directory containing the notebook
             notebook_dir = os.path.dirname(executed_notebook_path)
             
+            # If notebook_dir is empty (e.g., just a filename), use current directory
+            if not notebook_dir:
+                notebook_dir = '.'
+            
+            # Check if path is completely invalid
+            if not os.path.exists(notebook_dir):
+                print(f"ERROR: Notebook directory does not exist: {notebook_dir}")
+                return 0.0
+            
             # Also check the current working directory (where notebooks execute from)
             cwd = os.getcwd()
             
             # Exclude ground truth and other system CSVs
-            exclude_files = ['california_housing.csv']
+            exclude_files = ['california_housing.csv', 'housing_df.csv']
             
             # Look for CSV file in multiple locations
             csv_files = []
