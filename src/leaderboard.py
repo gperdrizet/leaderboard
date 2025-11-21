@@ -50,8 +50,17 @@ class LeaderboardManager:
             'last_updated': 'Last Updated'
         })
 
-        # Format the Last Updated column
-        df['Last Updated'] = pd.to_datetime(df['Last Updated']).dt.strftime('%Y-%m-%d %H:%M:%S')
+        # Format the Last Updated column - handle various datetime formats
+        try:
+            # Convert to datetime, handling various formats
+            dt_series = pd.to_datetime(df['Last Updated'], errors='coerce')
+            # Format non-null values, keep null values as empty string
+            df['Last Updated'] = dt_series.apply(
+                lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(x) else 'N/A'
+            )
+        except Exception:
+            # If conversion fails, just convert to string
+            df['Last Updated'] = df['Last Updated'].astype(str)
 
         # Round the score to 2 decimal places
         df['Best Score'] = df['Best Score'].round(2)

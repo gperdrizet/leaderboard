@@ -14,6 +14,7 @@ Usage:
 import sys
 import sqlite3
 from pathlib import Path
+from datetime import datetime
 
 
 def list_submissions():
@@ -96,11 +97,14 @@ def remove_submission(submission_id):
         
         best_submission_id = cursor.fetchone()[0]
         
+        # Use Python datetime to ensure consistent format
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        
         cursor.execute('''
             UPDATE leaderboard 
-            SET best_score = ?, submission_count = ?, best_submission_id = ?, last_updated = datetime('now')
+            SET best_score = ?, submission_count = ?, best_submission_id = ?, last_updated = ?
             WHERE username = ?
-        ''', (leaderboard_data[0], leaderboard_data[1], best_submission_id, username))
+        ''', (leaderboard_data[0], leaderboard_data[1], best_submission_id, now, username))
         
         print(f"\nRemoved submission ID {submission_id}")
         print(f"Updated leaderboard for user '{username}':")
