@@ -19,6 +19,8 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.LEADERBOARD_GITHUB_DEPLOYMENT }}
         run: |
-          git remote add hf https://gperdrizet:$HF_TOKEN@huggingface.co/spaces/gperdrizet/leaderboard
+          git lfs install
+          git remote add hf https://huggingface.co/spaces/gperdrizet/leaderboard
+          git config --local credential.helper '!f() { echo "username=gperdrizet"; echo "password=$HF_TOKEN"; }; f'
           git lfs push --all hf
           git push --force hf main
