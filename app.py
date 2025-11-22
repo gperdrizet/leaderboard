@@ -16,7 +16,10 @@ from src.database import Database
 from src.notebook_runner import NotebookRunner
 from src.scorer import Scorer
 from src.leaderboard import LeaderboardManager
+from src.logger import get_logger
 from utils.validation import validate_submission
+
+logger = get_logger(__name__)
 
 
 # Page configuration
@@ -28,10 +31,12 @@ st.set_page_config(
 
 # Initialize session state
 if 'db' not in st.session_state:
+    logger.info("Initializing application session state")
     st.session_state.db = Database("data/leaderboard.db")
     st.session_state.notebook_runner = NotebookRunner("data/outputs", timeout_seconds=300)
     st.session_state.scorer = Scorer(ground_truth_path="data/california_housing.csv")
     st.session_state.leaderboard_manager = LeaderboardManager(st.session_state.db)
+    logger.info("Application initialized successfully")
 
 # Custom CSS
 st.markdown("""
@@ -178,6 +183,7 @@ def process_submission(username: str, uploaded_file):
         username: Username of submitter
         uploaded_file: Uploaded file object
     """
+    logger.info(f"Processing submission from user '{username}', file: {uploaded_file.name}")
 
     # Create temporary file for uploaded notebook
     with tempfile.NamedTemporaryFile(delete=False, suffix='.ipynb') as tmp_file:
@@ -191,9 +197,11 @@ def process_submission(username: str, uploaded_file):
             is_valid, error_msg = validate_submission(tmp_path, username)
 
             if not is_valid:
+                logger.warning(f"Validation failed for '{username}': {error_msg}")
                 st.error(f"Validation Error: {error_msg}")
                 return
 
+        logger.info(f"Validation passed for '{username}'")
         st.success("Validation passed!")
 
         # Save to submissions directory
@@ -201,6 +209,7 @@ def process_submission(username: str, uploaded_file):
         submission_filename = f"{username}_{timestamp}.ipynb"
         submission_path = os.path.join("data/submissions", submission_filename)
         shutil.copy(tmp_path, submission_path)
+        logger.info(f"Saved submission to: {submission_path}")
 
         # Add to database
         submission_id = st.session_state.db.add_submission(
@@ -213,43 +222,60 @@ def process_submission(username: str, uploaded_file):
         with st.spinner("Executing notebook... This may take a few minutes."):
 
             st.session_state.db.update_submission(submission_id, "running")
+            logger.info(f"Starting execution for submission ID {submission_id}")
             result = st.session_state.notebook_runner.execute_notebook_safe(submission_path)
 
             if result['success']:
+                logger.info(f"Execution successful for submission ID {submission_id} in {result['execution_time']:.2f}s")
                 st.success(f"Execution completed in {result['execution_time']:.2f} seconds")
 
                 # Score the notebook
                 with st.spinner("Scoring your submission..."):
-                    score = st.session_state.scorer.score_notebook(
+                    score, scoring_error = st.session_state.scorer.score_notebook(
                         result['output_path']
                     )
 
-                    # Update database
-                    st.session_state.db.update_submission(
-                        submission_id,
-                        status="completed",
-                        score=score
-                    )
+                    # Check if scoring failed (0.0 with error message)
+                    if scoring_error:
+                        logger.error(f"Scoring failed for submission ID {submission_id}: {scoring_error}")
+                        st.error(f"Submission failed: {scoring_error}")
+                        
+                        st.session_state.db.update_submission(
+                            submission_id,
+                            status="failed",
+                            error_message=scoring_error
+                        )
+                    else:
+                        # Update database with successful score
+                        st.session_state.db.update_submission(
+                            submission_id,
+                            status="completed",
+                            score=score
+                        )
 
-                    st.session_state.db.update_leaderboard(username, submission_id, score)
-                    
-                    # Display results
-                    st.balloons()
-                    st.success("Submission successful!")
+                        st.session_state.db.update_leaderboard(username, submission_id, score)
+                        
+                        logger.info(f"Submission ID {submission_id} completed with score {score}")
+                        
+                        # Display results
+                        st.balloons()
+                        st.success("Submission successful!")
 
-                    col1, col2 = st.columns(2)
+                        col1, col2 = st.columns(2)
 
-                    with col1:
-                        st.metric("Your Score", f"{score:.2f}")
+                        with col1:
+                            st.metric("Your Score", f"{score:.2f}")
 
-                    with col2:
-                        rank_info = st.session_state.db.get_user_rank(username)
+                        with col2:
+                            rank_info = st.session_state.db.get_user_rank(username)
 
-                        if rank_info:
-                            rank, _ = rank_info
-                            st.metric("Your Rank", f"#{rank}")
+                            if rank_info:
+                                rank, _ = rank_info
+                                st.metric("Your Rank", f"#{rank}")
+                                logger.info(f"User '{username}' ranked #{rank} with score {score}")
             else:
 
+                logger.error(f"Execution failed for submission ID {submission_id}: {result['error_message']}")
                 st.error(f"Execution failed: {result['error_message']}")
 
                 st.session_state.db.update_submission(
@@ -262,6 +288,7 @@ def process_submission(username: str, uploaded_file):
         # Clean up temporary file
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+            logger.debug(f"Cleaned up temporary file: {tmp_path}")
 
 
 def show_leaderboard_page():
