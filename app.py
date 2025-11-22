@@ -16,8 +16,11 @@ from src.database import Database
 from src.notebook_runner import NotebookRunner
 from src.scorer import Scorer
 from src.leaderboard import LeaderboardManager
-from src.logger import get_logger
+from src.logger import get_logger, configure_warnings_logging
 from utils.validation import validate_submission
+
+# Configure warnings to be captured in logs
+configure_warnings_logging()
 
 logger = get_logger(__name__)
 
@@ -82,15 +85,15 @@ def main():
     # Sidebar
     with st.sidebar:
 
-        st.image(
-            "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard"
-        )
+        # st.image(
+        #     "https://via.placeholder.com/300x100/1f77b4/ffffff?text=Leaderboard"
+        # )
 
         st.markdown("### Navigation")
 
         page = st.radio(
             "Select Page",
-            ["Home & Submit", "Leaderboard", "User Stats", "About"],
+            ["Home & Submit", "Leaderboard", "User Stats", "About", "Admin"],
             label_visibility="collapsed"
         )
 
@@ -112,6 +115,9 @@ def main():
 
     elif page == "User Stats":
         show_stats_page()
+
+    elif page == "Admin":
+        show_admin_page()
 
     else:
         show_about_page()
@@ -412,6 +418,204 @@ def show_about_page():
     - **Supported Format**: Jupyter Notebook (.ipynb)
     - **Kernel**: Python 3
     """)
+
+
+def show_admin_page():
+    """Display admin page with PIN protection."""
+    st.markdown('<div class="sub-header">Admin Panel</div>', unsafe_allow_html=True)
+    
+    # Get admin PIN from environment variable
+    admin_pin = os.environ.get('ADMIN_PIN', '')
+    
+    # Also check Streamlit secrets (for HuggingFace Spaces)
+    if not admin_pin and hasattr(st, 'secrets') and 'ADMIN_PIN' in st.secrets:
+        admin_pin = st.secrets['ADMIN_PIN']
+    
+    if not admin_pin:
+        st.error("Admin access is not configured. Please set the ADMIN_PIN environment variable.")
+        logger.warning("Admin page accessed but ADMIN_PIN not configured")
+        return
+    
+    # Check if user is authenticated
+    if 'admin_authenticated' not in st.session_state:
+        st.session_state.admin_authenticated = False
+    
+    if not st.session_state.admin_authenticated:
+        # Show PIN entry form
+        st.markdown("### Admin Authentication")
+        st.info("Enter the admin PIN to access administrative functions.")
+        
+        pin_input = st.text_input("Admin PIN", type="password", key="admin_pin_input")
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if st.button("Login", type="primary"):
+                if pin_input == admin_pin:
+                    st.session_state.admin_authenticated = True
+                    logger.info("Admin authenticated successfully")
+                    st.rerun()
+                else:
+                    st.error("Incorrect PIN")
+                    logger.warning("Failed admin login attempt")
+        
+        return
+    
+    # User is authenticated, show admin panel
+    st.success("✓ Authenticated as Administrator")
+    
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("Logout"):
+            st.session_state.admin_authenticated = False
+            logger.info("Admin logged out")
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### Manage Submissions")
+    
+    # Get all submissions
+    all_submissions = st.session_state.db.get_all_submissions()
+    
+    if not all_submissions:
+        st.info("No submissions in the database.")
+        return
+    
+    # Display submissions table
+    st.markdown(f"**Total Submissions:** {len(all_submissions)}")
+    
+    # Convert to DataFrame for display
+    import pandas as pd
+    df = pd.DataFrame(all_submissions)
+    
+    # Format the display
+    display_df = df[['id', 'username', 'score', 'status', 'timestamp']].copy()
+    display_df['score'] = display_df['score'].apply(lambda x: f"{x:.2f}" if x is not None else "N/A")
+    display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    st.dataframe(
+        display_df,
+        hide_index=True,
+        column_config={
+            "id": st.column_config.NumberColumn("ID", width="small"),
+            "username": st.column_config.TextColumn("Username", width="medium"),
+            "score": st.column_config.TextColumn("Score", width="small"),
+            "status": st.column_config.TextColumn("Status", width="small"),
+            "timestamp": st.column_config.TextColumn("Timestamp", width="medium"),
+        },
+        width="stretch"
+    )
+    
+    st.markdown("---")
+    st.markdown("### Remove Submission")
+    
+    # Initialize session state for removal confirmation
+    if 'confirm_removal_id' not in st.session_state:
+        st.session_state.confirm_removal_id = None
+    
+    # Submission removal
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        submission_id_input = st.number_input(
+            "Submission ID to remove",
+            min_value=1,
+            step=1,
+            help="Enter the ID of the submission you want to remove",
+            key="removal_id_input"
+        )
+    
+    with col2:
+        st.markdown("")
+        st.markdown("")
+        if st.button("Remove Submission", type="secondary", key="remove_btn"):
+            # Store the ID to confirm
+            st.session_state.confirm_removal_id = submission_id_input
+            st.rerun()
+    
+    # Show confirmation dialog if a removal is pending
+    if st.session_state.confirm_removal_id is not None:
+        submission_id = st.session_state.confirm_removal_id
+        
+        # Get submission details
+        submission = st.session_state.db.get_submission(submission_id)
+        
+        if not submission:
+            st.error(f"Submission ID {submission_id} not found.")
+            logger.warning(f"Attempt to remove non-existent submission ID {submission_id}")
+            st.session_state.confirm_removal_id = None
+        else:
+            username = submission['username']
+            score = submission['score']
+            status = submission['status']
+            
+            # Show confirmation
+            st.warning(f"""⚠️ Confirm Removal
+            
+**Submission ID:** {submission_id}  
+**Username:** {username}  
+**Score:** {score if score is not None else 'N/A'}  
+**Status:** {status}
+
+This action cannot be undone.
+            """)
+            
+            col1, col2, col3 = st.columns([1, 1, 2])
+            
+            with col1:
+                if st.button("✓ Yes, Remove", type="primary", key=f"confirm_remove_{submission_id}"):
+                    logger.info(f"Admin confirmed removal of submission ID {submission_id}")
+                    try:
+                        # Delete from submissions table
+                        with st.session_state.db._get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute('DELETE FROM submissions WHERE id = ?', (submission_id,))
+                            
+                            # Update leaderboard - recalculate best score for this user
+                            cursor.execute('''
+                                SELECT MAX(score) as best_score, COUNT(*) as count
+                                FROM submissions 
+                                WHERE username = ? AND status = 'completed'
+                            ''', (username,))
+                            
+                            leaderboard_data = cursor.fetchone()
+                            
+                            if leaderboard_data['best_score'] is not None:
+                                # User still has completed submissions
+                                cursor.execute('''
+                                    SELECT id FROM submissions 
+                                    WHERE username = ? AND score = ? AND status = 'completed'
+                                    LIMIT 1
+                                ''', (username, leaderboard_data['best_score']))
+                                
+                                best_submission_id = cursor.fetchone()['id']
+                                
+                                cursor.execute('''
+                                    UPDATE leaderboard 
+                                    SET best_score = ?, submission_count = ?, best_submission_id = ?, last_updated = ?
+                                    WHERE username = ?
+                                ''', (leaderboard_data['best_score'], leaderboard_data['count'], best_submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), username))
+                                
+                                logger.info(f"Removed submission ID {submission_id}, updated leaderboard for {username}")
+                            else:
+                                # User has no more completed submissions
+                                cursor.execute('DELETE FROM leaderboard WHERE username = ?', (username,))
+                                logger.info(f"Removed submission ID {submission_id}, removed {username} from leaderboard")
+                        
+                        # Clear confirmation state and show success
+                        st.session_state.confirm_removal_id = None
+                        st.success(f"✓ Successfully removed submission ID {submission_id}")
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"Error removing submission: {e}")
+                        logger.error(f"Error removing submission ID {submission_id}: {e}", exc_info=True)
+                        st.session_state.confirm_removal_id = None
+            
+            with col2:
+                if st.button("✗ Cancel", key=f"cancel_remove_{submission_id}"):
+                    st.session_state.confirm_removal_id = None
+                    st.info("Removal cancelled.")
+                    st.rerun()
 
 
 if __name__ == "__main__":

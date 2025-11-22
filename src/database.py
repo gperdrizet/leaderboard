@@ -123,7 +123,7 @@ class Database:
             cursor.execute("""
                 INSERT INTO submissions (username, timestamp, notebook_path, score, status, error_message)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (username, datetime.now(), notebook_path, score, status, error_message))
+            """, (username, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), notebook_path, score, status, error_message))
             submission_id = cursor.lastrowid
             logger.info(f"Added submission ID {submission_id} for user '{username}' with status '{status}'")
             return submission_id
@@ -211,7 +211,7 @@ class Database:
                         UPDATE leaderboard
                         SET best_score = ?, best_submission_id = ?, last_updated = ?, submission_count = ?
                         WHERE username = ?
-                    """, (score, submission_id, datetime.now(), submission_count + 1, username))
+                    """, (score, submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), submission_count + 1, username))
                     logger.info(f"Updated leaderboard for '{username}': new best score {score} (was {best_score})")
                 else:
                     # Just increment submission count
@@ -219,14 +219,14 @@ class Database:
                         UPDATE leaderboard
                         SET last_updated = ?, submission_count = ?
                         WHERE username = ?
-                    """, (datetime.now(), submission_count + 1, username))
+                    """, (datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), submission_count + 1, username))
                     logger.info(f"Updated submission count for '{username}': {submission_count + 1} submissions")
             else:
                 # New user - insert into leaderboard
                 cursor.execute("""
                     INSERT INTO leaderboard (username, best_score, best_submission_id, last_updated, submission_count)
                     VALUES (?, ?, ?, ?, ?)
-                """, (username, score, submission_id, datetime.now(), 1))
+                """, (username, score, submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), 1))
                 logger.info(f"Added '{username}' to leaderboard with score {score}")
     
     def get_leaderboard(self, limit: Optional[int] = None) -> List[Dict]:

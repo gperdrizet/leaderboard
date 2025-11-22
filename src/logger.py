@@ -2,6 +2,7 @@
 
 import logging
 import os
+import warnings
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -83,3 +84,41 @@ def get_logger(name: str) -> logging.Logger:
         Logger instance
     """
     return setup_logger(name)
+
+
+def configure_warnings_logging():
+    """Configure Python warnings to be captured by the logging system.
+    
+    This redirects all Python warnings (including DeprecationWarnings) to the
+    logging system so they appear in log files instead of just stderr.
+    """
+    # Capture warnings with the logging system
+    logging.captureWarnings(True)
+    
+    # Get the warnings logger and configure it
+    warnings_logger = logging.getLogger('py.warnings')
+    
+    # Create logs directory if it doesn't exist
+    Path('logs').mkdir(parents=True, exist_ok=True)
+    
+    # Add file handler for warnings
+    warnings_log_file = os.path.join('logs', 'leaderboard.log')
+    warnings_file_handler = RotatingFileHandler(
+        warnings_log_file,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    warnings_file_handler.setLevel(logging.WARNING)
+    warnings_file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    
+    # Only add handler if not already present
+    if not warnings_logger.handlers:
+        warnings_logger.addHandler(warnings_file_handler)
+    
+    # Make sure all warnings are shown (including DeprecationWarnings)
+    warnings.simplefilter('default', DeprecationWarning)
+    warnings.simplefilter('default', PendingDeprecationWarning)

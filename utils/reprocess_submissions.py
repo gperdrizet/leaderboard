@@ -20,6 +20,10 @@ from src.database import Database
 from src.notebook_runner import NotebookRunner
 from src.scorer import Scorer
 from src.leaderboard import LeaderboardManager
+from src.logger import configure_warnings_logging
+
+# Configure warnings to be captured in logs
+configure_warnings_logging()
 
 
 def extract_username_from_filename(filename):
