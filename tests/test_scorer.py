@@ -71,9 +71,10 @@ class TestScorer(unittest.TestCase):
         with open(notebook_path, 'w') as f:
             f.write("{}")
         
-        score = self.scorer.score_notebook(notebook_path)
+        score, error = self.scorer.score_notebook(notebook_path)
         
         self.assertEqual(score, 0.0)
+        self.assertIsNotNone(error)  # Should have error message
     
     def test_score_notebook_with_csv(self):
         """Test scoring when CSV file exists."""
@@ -83,18 +84,20 @@ class TestScorer(unittest.TestCase):
         # Create notebook path in same directory
         notebook_path = os.path.join(self.temp_dir, "test.ipynb")
         
-        score = self.scorer.score_notebook(notebook_path)
+        score, error = self.scorer.score_notebook(notebook_path)
         
         # Should get points for having CSV
         self.assertGreater(score, 0.0)
         self.assertIsInstance(score, float)
+        self.assertIsNone(error)  # No error when successful
     
     def test_score_notebook_invalid_file(self):
         """Test scoring with invalid notebook file."""
-        score = self.scorer.score_notebook("/nonexistent/notebook.ipynb")
+        score, error = self.scorer.score_notebook("/nonexistent/notebook.ipynb")
         
-        # Should return 0 score
+        # Should return 0 score with error
         self.assertEqual(score, 0.0)
+        self.assertIsNotNone(error)
     
     def test_score_against_ground_truth_perfect(self):
         """Test scoring against ground truth with perfect match."""
@@ -104,10 +107,11 @@ class TestScorer(unittest.TestCase):
         # Create matching CSV
         csv_path = self.create_csv_file()
         
-        score = scorer.score_from_csv_path(csv_path)
+        score, error = scorer.score_from_csv_path(csv_path)
         
         # Should get 0% improvement (same data)
         self.assertIsInstance(score, float)
+        self.assertIsNone(error)
     
     def test_score_against_ground_truth_partial(self):
         """Test scoring against ground truth with partial match."""
@@ -122,10 +126,11 @@ class TestScorer(unittest.TestCase):
         })
         csv_path = self.create_csv_file(data=data)
         
-        score = scorer.score_from_csv_path(csv_path)
+        score, error = scorer.score_from_csv_path(csv_path)
         
         # Should return a numeric score
         self.assertIsInstance(score, float)
+        self.assertIsNone(error)
     
     def test_score_against_ground_truth_shape_mismatch(self):
         """Test scoring with shape mismatch."""
@@ -139,10 +144,11 @@ class TestScorer(unittest.TestCase):
         })
         csv_path = self.create_csv_file(data=data)
         
-        score = scorer.score_from_csv_path(csv_path)
+        score, error = scorer.score_from_csv_path(csv_path)
         
-        # Should get 0 for error
+        # Shape mismatch causes scoring error, returns 0
         self.assertEqual(score, 0.0)
+        # Error may or may not be present depending on how sklearn handles it
     
     def test_score_against_ground_truth_column_mismatch(self):
         """Test scoring with column mismatch."""
@@ -157,21 +163,23 @@ class TestScorer(unittest.TestCase):
         })
         csv_path = self.create_csv_file(data=data)
         
-        score = scorer.score_from_csv_path(csv_path)
+        score, error = scorer.score_from_csv_path(csv_path)
         
-        # Should get 0 for error
+        # Column mismatch causes scoring error, returns 0
         self.assertEqual(score, 0.0)
+        # Error may or may not be present depending on how sklearn handles it
     
     def test_basic_csv_validation(self):
         """Test basic CSV validation when no ground truth exists."""
         # Create CSV
         csv_path = self.create_csv_file()
         
-        score = self.scorer.score_from_csv_path(csv_path)
+        score, error = self.scorer.score_from_csv_path(csv_path)
         
         # Should get points for valid CSV
         self.assertGreater(score, 0.0)
         self.assertIsInstance(score, float)
+        self.assertIsNone(error)
     
     def test_csv_with_null_values(self):
         """Test CSV with null values."""
@@ -181,10 +189,11 @@ class TestScorer(unittest.TestCase):
         })
         csv_path = self.create_csv_file(data=data)
         
-        score = self.scorer.score_from_csv_path(csv_path)
+        score, error = self.scorer.score_from_csv_path(csv_path)
         
         # Should still process and return numeric score
         self.assertIsInstance(score, float)
+        self.assertIsNone(error)  # Not an error, just lower score
 
 
 if __name__ == '__main__':

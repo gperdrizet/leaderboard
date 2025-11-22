@@ -8,8 +8,17 @@ Usage:
     python utils/fix_running_submissions.py
 """
 
+import sys
 import sqlite3
 from pathlib import Path
+
+# Add parent directory to path to import modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.logger import configure_warnings_logging
+
+# Configure warnings to be captured in logs
+configure_warnings_logging()
 
 
 def fix_running_submissions():

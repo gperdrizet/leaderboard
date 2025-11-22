@@ -151,6 +151,32 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
    scorer = Scorer(ground_truth_path="path/to/ground_truth.json")
    ```
 
+#### Admin Panel
+
+The application includes an admin panel for managing submissions:
+
+1. **Set up admin access**:
+
+   Create and store an administrator pin in an environment variable:
+
+   ```bash
+   export ADMIN_PIN=your_secure_pin
+   ```
+
+2. **Access the admin panel**:
+   - Navigate to the "Admin" page in the sidebar
+   - Enter your admin PIN
+   - View all submissions and remove entries as needed
+
+3. **Admin features**:
+   - View all submissions with ID, username, score, status, and timestamp
+   - Remove individual submissions by ID
+   - Automatic leaderboard recalculation after removal
+   - Secure PIN-based authentication (session-based)
+
+**Security Note**: The admin PIN is stored in an environment variable and should be kept secure. Use a strong PIN (6+ characters recommended).
+
+
 ## Technical Details
 
 ### Database Schema

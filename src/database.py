@@ -6,6 +6,10 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class Database:
     """Manages SQLite database operations for submissions and leaderboard."""
@@ -16,15 +20,18 @@ class Database:
         Args:
             db_path: Path to SQLite database file
         """
+        logger.info(f"Initializing Database with path: {db_path}")
         self.db_path = db_path
         self._ensure_db_directory()
         self._create_tables()
+        logger.info("Database initialized successfully")
     
     def _ensure_db_directory(self):
         """Ensure database directory exists."""
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
+            logger.info(f"Created database directory: {db_dir}")
     
     @contextmanager
     def _get_connection(self):
@@ -34,55 +41,62 @@ class Database:
         try:
             yield conn
             conn.commit()
-        except Exception:
+        except Exception as e:
             conn.rollback()
+            logger.error(f"Database transaction failed, rolling back: {e}", exc_info=True)
             raise
         finally:
             conn.close()
     
     def _create_tables(self):
         """Create database tables if they don't exist."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Submissions table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS submissions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL,
-                    timestamp DATETIME NOT NULL,
-                    notebook_path TEXT NOT NULL,
-                    score REAL,
-                    status TEXT NOT NULL,
-                    error_message TEXT
-                )
-            """)
-            
-            # Leaderboard table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS leaderboard (
-                    username TEXT PRIMARY KEY,
-                    best_score REAL NOT NULL,
-                    best_submission_id INTEGER NOT NULL,
-                    last_updated DATETIME NOT NULL,
-                    submission_count INTEGER NOT NULL,
-                    FOREIGN KEY (best_submission_id) REFERENCES submissions(id)
-                )
-            """)
-            
-            # Create indexes for better performance
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_submissions_username 
-                ON submissions(username)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_submissions_timestamp 
-                ON submissions(timestamp)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_leaderboard_score 
-                ON leaderboard(best_score DESC)
-            """)
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Submissions table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS submissions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT NOT NULL,
+                        timestamp DATETIME NOT NULL,
+                        notebook_path TEXT NOT NULL,
+                        score REAL,
+                        status TEXT NOT NULL,
+                        error_message TEXT
+                    )
+                """)
+                
+                # Leaderboard table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS leaderboard (
+                        username TEXT PRIMARY KEY,
+                        best_score REAL NOT NULL,
+                        best_submission_id INTEGER NOT NULL,
+                        last_updated DATETIME NOT NULL,
+                        submission_count INTEGER NOT NULL,
+                        FOREIGN KEY (best_submission_id) REFERENCES submissions(id)
+                    )
+                """)
+                
+                # Create indexes for better performance
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_submissions_username 
+                    ON submissions(username)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_submissions_timestamp 
+                    ON submissions(timestamp)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_leaderboard_score 
+                    ON leaderboard(best_score DESC)
+                """)
+                
+                logger.debug("Database tables and indexes created/verified")
+        except Exception as e:
+            logger.error(f"Error creating database tables: {e}", exc_info=True)
+            raise
     
     def add_submission(
         self,
@@ -109,8 +123,10 @@ class Database:
             cursor.execute("""
                 INSERT INTO submissions (username, timestamp, notebook_path, score, status, error_message)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (username, datetime.now(), notebook_path, score, status, error_message))
-            return cursor.lastrowid
+            """, (username, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), notebook_path, score, status, error_message))
+            submission_id = cursor.lastrowid
+            logger.info(f"Added submission ID {submission_id} for user '{username}' with status '{status}'")
+            return submission_id
     
     def update_submission(
         self,
@@ -134,6 +150,9 @@ class Database:
                 SET status = ?, score = ?, error_message = ?
                 WHERE id = ?
             """, (status, score, error_message, submission_id))
+            logger.info(f"Updated submission ID {submission_id}: status='{status}', score={score}")
+            if error_message:
+                logger.warning(f"Submission ID {submission_id} error: {error_message}")
     
     def get_submission(self, submission_id: int) -> Optional[Dict]:
         """Get a submission by ID.
@@ -192,20 +211,23 @@ class Database:
                         UPDATE leaderboard
                         SET best_score = ?, best_submission_id = ?, last_updated = ?, submission_count = ?
                         WHERE username = ?
-                    """, (score, submission_id, datetime.now(), submission_count + 1, username))
+                    """, (score, submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), submission_count + 1, username))
+                    logger.info(f"Updated leaderboard for '{username}': new best score {score} (was {best_score})")
                 else:
                     # Just increment submission count
                     cursor.execute("""
                         UPDATE leaderboard
                         SET last_updated = ?, submission_count = ?
                         WHERE username = ?
-                    """, (datetime.now(), submission_count + 1, username))
+                    """, (datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), submission_count + 1, username))
+                    logger.info(f"Updated submission count for '{username}': {submission_count + 1} submissions")
             else:
                 # New user - insert into leaderboard
                 cursor.execute("""
                     INSERT INTO leaderboard (username, best_score, best_submission_id, last_updated, submission_count)
                     VALUES (?, ?, ?, ?, ?)
-                """, (username, score, submission_id, datetime.now(), 1))
+                """, (username, score, submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), 1))
+                logger.info(f"Added '{username}' to leaderboard with score {score}")
     
     def get_leaderboard(self, limit: Optional[int] = None) -> List[Dict]:
         """Get leaderboard rankings.
@@ -255,6 +277,7 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM leaderboard")
             cursor.execute("DELETE FROM submissions")
+            logger.warning("Cleared all leaderboard and submission data")
     
     def get_all_submissions(self, limit: Optional[int] = None) -> List[Dict]:
         """Get all submissions across all users.

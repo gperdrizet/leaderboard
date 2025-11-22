@@ -11,6 +11,10 @@ from typing import Optional, Any
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import cross_val_score
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class Scorer:
     """Handles scoring of notebook outputs based on CSV files."""
@@ -21,6 +25,7 @@ class Scorer:
         Args:
             ground_truth_path: Optional path to ground truth CSV file
         """
+        logger.info(f"Initializing Scorer with ground_truth_path={ground_truth_path}")
         self.ground_truth_path = ground_truth_path
         self.ground_truth = None
 
@@ -31,15 +36,16 @@ class Scorer:
         """Load ground truth data from CSV file."""
         try:
             self.ground_truth = pd.read_csv(self.ground_truth_path)
+            logger.info(f"Loaded ground truth: shape={self.ground_truth.shape}, columns={list(self.ground_truth.columns)}")
         except Exception as e:
-            print(f"Warning: Could not load ground truth: {e}")
+            logger.error(f"Could not load ground truth from {self.ground_truth_path}: {e}", exc_info=True)
             self.ground_truth = None
 
     def score_notebook(
         self,
         executed_notebook_path: str,
         output_data: Optional[Any] = None
-    ) -> float:
+    ) -> tuple[float, Optional[str]]:
         """Score an executed notebook based on its CSV output.
         
         This function looks for a CSV file in the same directory as the 
@@ -50,9 +56,11 @@ class Scorer:
             output_data: Optional (not used, kept for compatibility)
             
         Returns:
-            Score as a float
+            Tuple of (score, error_message) where error_message is None if successful
         """
         try:
+            logger.info(f"Starting scoring for notebook: {executed_notebook_path}")
+            
             # Get the directory containing the notebook
             notebook_dir = os.path.dirname(executed_notebook_path)
             
@@ -62,19 +70,20 @@ class Scorer:
             
             # Check if path is completely invalid
             if not os.path.exists(notebook_dir):
-                print(f"ERROR: Notebook directory does not exist: {notebook_dir}")
-                return 0.0
+                error_msg = f"Notebook directory does not exist: {notebook_dir}"
+                logger.error(error_msg)
+                return 0.0, error_msg
             
             # Also check the current working directory (where notebooks execute from)
             cwd = os.getcwd()
             
-            # Exclude ground truth and other system CSVs
-            exclude_files = ['california_housing.csv', 'housing_df.csv']
+            # Exclude ground truth and other system CSVs (only from root/data directories)
+            exclude_files = ['california_housing.csv']
             
             # Look for CSV file in multiple locations
             csv_files = []
             
-            # First, check the notebook's directory
+            # First, check the notebook's directory (outputs directory - accept all CSVs here)
             if os.path.exists(notebook_dir):
                 csv_files = [
                     os.path.join(notebook_dir, f) 
@@ -83,47 +92,49 @@ class Scorer:
                 ]
             
             # If not found, check the current working directory
+            # (here we exclude housing_df.csv to avoid picking up old test files)
             if not csv_files and os.path.exists(cwd):
+                exclude_files_cwd = exclude_files + ['housing_df.csv']
                 csv_files = [
                     os.path.join(cwd, f) 
                     for f in os.listdir(cwd) 
-                    if f.endswith('.csv') and f not in exclude_files and 'data/' not in f
+                    if f.endswith('.csv') and f not in exclude_files_cwd and 'data/' not in f
                 ]
                 if csv_files:
-                    print(f"Found CSV file(s) in working directory: {cwd}")
+                    logger.debug(f"Found CSV file(s) in working directory: {cwd}")
             
             if not csv_files:
-                print(f"ERROR: No CSV file found in notebook directory: {notebook_dir}")
-                print(f"Also checked working directory: {cwd}")
-                print(f"Files in notebook dir: {os.listdir(notebook_dir) if os.path.exists(notebook_dir) else 'N/A'}")
-                print(f"CSV files in working dir (excluding system files): {[f for f in os.listdir(cwd) if f.endswith('.csv') and f not in exclude_files] if os.path.exists(cwd) else 'N/A'}")
-                return 0.0
+                error_msg = "No CSV output file found. Your notebook must save a CSV file with your engineered features."
+                logger.error(f"No CSV file found in notebook directory: {notebook_dir}")
+                logger.debug(f"Also checked working directory: {cwd}")
+                logger.debug(f"Files in notebook dir: {os.listdir(notebook_dir) if os.path.exists(notebook_dir) else 'N/A'}")
+                logger.debug(f"CSV files in working dir (excluding system files): {[f for f in os.listdir(cwd) if f.endswith('.csv') and f not in exclude_files_cwd] if os.path.exists(cwd) else 'N/A'}")
+                return 0.0, error_msg
             
             # Use the first CSV file found (or implement custom logic to find the right one)
             csv_path = csv_files[0]
-            print(f"Found CSV file: {csv_path}")
+            logger.info(f"Found CSV file: {csv_path}")
             
             # Read the submission CSV
             submission_df = pd.read_csv(csv_path)
-            print(f"CSV loaded successfully. Shape: {submission_df.shape}, Columns: {list(submission_df.columns)}")
+            logger.info(f"CSV loaded successfully. Shape: {submission_df.shape}, Columns: {list(submission_df.columns)}")
             
             # Score based on ground truth if available
             if self.ground_truth is not None:
-                print("Using ground truth for scoring")
+                logger.info("Using ground truth for scoring")
                 score = self._score_against_ground_truth(submission_df)
             else:
                 # Basic scoring if no ground truth available
-                print("Using basic CSV validation for scoring")
+                logger.info("Using basic CSV validation for scoring")
                 score = self._basic_csv_validation(submission_df)
             
-            print(f"Final score: {score}")
-            return score
+            logger.info(f"Final score for {executed_notebook_path}: {score}")
+            return score, None
 
         except Exception as e:
-            print(f"ERROR in score_notebook: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return 0.0
+            error_msg = f"Scoring error: {type(e).__name__}: {str(e)}"
+            logger.error(f"Error in score_notebook for {executed_notebook_path}: {error_msg}", exc_info=True)
+            return 0.0, error_msg
 
     def _score_against_ground_truth(self, submission_df: pd.DataFrame) -> float:
         """Score submission DataFrame against ground truth.
@@ -135,8 +146,8 @@ class Scorer:
             Score as a float
         """
         try:
-            print(f"Ground truth shape: {self.ground_truth.shape}, columns: {list(self.ground_truth.columns)}")
-            print(f"Submission shape: {submission_df.shape}, columns: {list(submission_df.columns)}")
+            logger.debug(f"Ground truth shape: {self.ground_truth.shape}, columns: {list(self.ground_truth.columns)}")
+            logger.debug(f"Submission shape: {submission_df.shape}, columns: {list(submission_df.columns)}")
             
             model = LinearRegression()
 
@@ -162,14 +173,12 @@ class Scorer:
             original_mean = scores_original.mean()
             mean_improvement = ((engineered_mean - original_mean) / original_mean) * 100
 
-            print(f"Original Mean R2: {original_mean:.4f}, Engineered Mean R2: {engineered_mean:.4f}, Improvement: {mean_improvement:.2f}%")
+            logger.info(f"Scoring results - Original R²: {original_mean:.4f}, Engineered R²: {engineered_mean:.4f}, Improvement: {mean_improvement:.2f}%")
 
             return mean_improvement
             
         except Exception as e:
-            print(f"ERROR in _score_against_ground_truth: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error in _score_against_ground_truth: {type(e).__name__}: {str(e)}", exc_info=True)
             return 0.0
 
     def _basic_csv_validation(self, submission_df: pd.DataFrame) -> float:
@@ -185,37 +194,47 @@ class Scorer:
         
         # Check if CSV has content
         if submission_df.empty:
+            logger.warning("Submission CSV is empty")
             return 0.0
         
         # Award points for having data
         score += 50.0
+        logger.debug("Awarded 50 points for having data")
         
         # Check for null values
         null_count = submission_df.isnull().sum().sum()
         if null_count == 0:
             score += 25.0
+            logger.debug("Awarded 25 points for no null values")
+        else:
+            logger.debug(f"Found {null_count} null values, no points awarded")
         
         # Basic format check - award remaining points
         score += 25.0
+        logger.debug("Awarded 25 points for format check")
         
+        logger.info(f"Basic validation score: {score}")
         return score
 
-    def score_from_csv_path(self, csv_path: str) -> float:
+    def score_from_csv_path(self, csv_path: str) -> tuple[float, Optional[str]]:
         """Score a CSV file directly by path.
         
         Args:
             csv_path: Path to the CSV file
             
         Returns:
-            Score as a float
+            Tuple of (score, error_message) where error_message is None if successful
         """
         try:
+            logger.info(f"Scoring CSV file directly: {csv_path}")
             submission_df = pd.read_csv(csv_path)
             
             if self.ground_truth is not None:
-                return self._score_against_ground_truth(submission_df)
+                return self._score_against_ground_truth(submission_df), None
             else:
-                return self._basic_csv_validation(submission_df)
+                return self._basic_csv_validation(submission_df), None
                 
         except Exception as e:
-            return 0.0
+            error_msg = f"Error reading CSV: {str(e)}"
+            logger.error(f"Error scoring CSV {csv_path}: {e}", exc_info=True)
+            return 0.0, error_msg
