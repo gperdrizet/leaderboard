@@ -1,4 +1,5 @@
 # Backend stuff
+huggingface_hub
 ipykernel
 nbconvert
 nbformat

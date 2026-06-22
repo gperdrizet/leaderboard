@@ -565,47 +565,13 @@ This action cannot be undone.
                 if st.button("✓ Yes, Remove", type="primary", key=f"confirm_remove_{submission_id}"):
                     logger.info(f"Admin confirmed removal of submission ID {submission_id}")
                     try:
-                        # Delete from submissions table
-                        with st.session_state.db._get_connection() as conn:
-                            cursor = conn.cursor()
-                            cursor.execute('DELETE FROM submissions WHERE id = ?', (submission_id,))
-                            
-                            # Update leaderboard - recalculate best score for this user
-                            cursor.execute('''
-                                SELECT MAX(score) as best_score, COUNT(*) as count
-                                FROM submissions 
-                                WHERE username = ? AND status = 'completed'
-                            ''', (username,))
-                            
-                            leaderboard_data = cursor.fetchone()
-                            
-                            if leaderboard_data['best_score'] is not None:
-                                # User still has completed submissions
-                                cursor.execute('''
-                                    SELECT id FROM submissions 
-                                    WHERE username = ? AND score = ? AND status = 'completed'
-                                    LIMIT 1
-                                ''', (username, leaderboard_data['best_score']))
-                                
-                                best_submission_id = cursor.fetchone()['id']
-                                
-                                cursor.execute('''
-                                    UPDATE leaderboard 
-                                    SET best_score = ?, submission_count = ?, best_submission_id = ?, last_updated = ?
-                                    WHERE username = ?
-                                ''', (leaderboard_data['best_score'], leaderboard_data['count'], best_submission_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), username))
-                                
-                                logger.info(f"Removed submission ID {submission_id}, updated leaderboard for {username}")
-                            else:
-                                # User has no more completed submissions
-                                cursor.execute('DELETE FROM leaderboard WHERE username = ?', (username,))
-                                logger.info(f"Removed submission ID {submission_id}, removed {username} from leaderboard")
-                        
-                        # Clear confirmation state and show success
+                        removed = st.session_state.db.remove_submission(submission_id)
                         st.session_state.confirm_removal_id = None
-                        st.success(f"✓ Successfully removed submission ID {submission_id}")
+                        if removed:
+                            st.success(f"✓ Successfully removed submission ID {submission_id}")
+                        else:
+                            st.error(f"Submission ID {submission_id} not found.")
                         st.rerun()
-                        
                     except Exception as e:
                         st.error(f"Error removing submission: {e}")
                         logger.error(f"Error removing submission ID {submission_id}: {e}", exc_info=True)

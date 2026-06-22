@@ -5,16 +5,16 @@ This script finds all submissions with status 'running' and updates them
 to 'failed' status with an appropriate error message.
 
 Usage:
-    python utils/fix_running_submissions.py
+    python utils/clean_running_submissions.py
 """
 
 import sys
-import sqlite3
 from pathlib import Path
 
 # Add parent directory to path to import modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.database import Database
 from src.logger import configure_warnings_logging
 
 # Configure warnings to be captured in logs
@@ -23,53 +23,39 @@ configure_warnings_logging()
 
 def fix_running_submissions():
     """Update all submissions with 'running' status to 'failed'."""
-    db_path = Path(__file__).parent.parent / 'data' / 'leaderboard.db'
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Find all running submissions
-    cursor.execute('''
-        SELECT id, username, notebook_path, timestamp 
-        FROM submissions 
-        WHERE status = 'running'
-    ''')
-    
-    running_submissions = cursor.fetchall()
-    
-    if not running_submissions:
+    db = Database('data/leaderboard.db')
+
+    all_submissions = db.get_all_submissions()
+    running = [s for s in all_submissions if s['status'] == 'running']
+
+    if not running:
         print("\nNo running submissions found.")
-        conn.close()
         return
-    
-    print(f"\nFound {len(running_submissions)} running submission(s):")
+
+    print(f"\nFound {len(running)} running submission(s):")
     print("-" * 80)
     print(f"{'ID':<5} {'Username':<20} {'Timestamp'}")
     print("-" * 80)
-    for sub in running_submissions:
-        print(f"{sub[0]:<5} {sub[1]:<20} {sub[3]}")
-    
+    for sub in running:
+        print(f"{sub['id']:<5} {sub['username']:<20} {sub['timestamp']}")
+
     print("\nThese will be marked as 'failed' with error message:")
     print("  'Execution timeout or interrupted'")
-    
-    # Update them to failed
-    cursor.execute('''
-        UPDATE submissions 
-        SET status = 'failed',
-            error_message = 'Execution timeout or interrupted'
-        WHERE status = 'running'
-    ''')
-    
-    conn.commit()
-    rows_updated = cursor.rowcount
-    conn.close()
-    
-    print(f"\n✅ Updated {rows_updated} submission(s) from 'running' to 'failed'")
+
+    for sub in running:
+        db.update_submission(
+            sub['id'],
+            status='failed',
+            error_message='Execution timeout or interrupted'
+        )
+
+    print(f"\n✅ Updated {len(running)} submission(s) from 'running' to 'failed'")
 
 
 if __name__ == '__main__':
     print("This will update all 'running' submissions to 'failed' status")
     response = input("\nContinue? (yes/no): ")
-    
+
     if response.lower() in ['yes', 'y']:
         fix_running_submissions()
     else:
