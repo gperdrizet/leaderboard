@@ -34,13 +34,12 @@ wheels/
 # Data directories (except structure)
 # data/submissions/*
 # data/outputs/*
-# data/*.db
+data/*.db
 
 # Keep directory structure
 # !data/submissions/.gitkeep
 # !data/outputs/.gitkeep
 
-# *.db
 # *.csv
 # !/data/california_housing.csv
 
