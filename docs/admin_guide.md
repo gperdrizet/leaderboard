@@ -6,7 +6,28 @@ The admin panel allows instructors to manage submissions in the leaderboard appl
 
 ## Setup
 
-### 1. Set the Admin PIN
+### 1. Configure Persistent Database (HuggingFace Spaces)
+
+By default, the SQLite database is stored on the Space's ephemeral filesystem and is lost on each redeployment. To persist the database across deployments, configure a HuggingFace Hub dataset repository as the backing store.
+
+**Step 1 — Create a dataset repository** on [HuggingFace Hub](https://huggingface.co/new-dataset). It can be private. Note the repo ID (e.g. `your-username/leaderboard-db`).
+
+**Step 2 — Create a fine-grained access token** at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) with **write** access to that dataset repo.
+
+**Step 3 — Add two Space Secrets** in your Space settings (`Settings → Variables and secrets`):
+
+| Secret name | Value |
+|---|---|
+| `HF_TOKEN` | The token from step 2 |
+| `HF_DB_REPO` | The dataset repo ID, e.g. `your-username/leaderboard-db` |
+
+Once both secrets are set the app will:
+- Download `leaderboard.db` from the dataset repo on every startup
+- Upload the updated `leaderboard.db` back after every write operation (new submission, score update, leaderboard change)
+
+If either secret is missing the app runs in **local-only mode** — suitable for local development.
+
+### 2. Set the Admin PIN
 
 Choose one of these methods:
 
@@ -32,7 +53,7 @@ Then access it in the app:
 admin_pin = st.secrets.get("ADMIN_PIN", os.environ.get('ADMIN_PIN', ''))
 ```
 
-### 2. Choose a Secure PIN
+### 3. Choose a Secure PIN
 
 - Use at least 6 characters
 - Mix letters and numbers for better security

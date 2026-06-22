@@ -252,6 +252,44 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(submission['status'], "failed")
         self.assertEqual(submission['error_message'], "Execution timeout")
 
+    def test_remove_submission_updates_leaderboard(self):
+        """Test that removing a submission recalculates the leaderboard."""
+        # Add two completed submissions for the same user
+        id1 = self.db.add_submission("user1", "/path/nb1.ipynb", "completed", score=80.0)
+        self.db.update_leaderboard("user1", id1, 80.0)
+        id2 = self.db.add_submission("user1", "/path/nb2.ipynb", "completed", score=90.0)
+        self.db.update_leaderboard("user1", id2, 90.0)
+
+        # Remove the best submission — leaderboard should fall back to 80.0
+        result = self.db.remove_submission(id2)
+        self.assertTrue(result)
+
+        leaderboard = self.db.get_leaderboard()
+        self.assertEqual(len(leaderboard), 1)
+        self.assertEqual(leaderboard[0]['best_score'], 80.0)
+        self.assertEqual(leaderboard[0]['submission_count'], 1)
+
+        # The deleted submission should be gone
+        self.assertIsNone(self.db.get_submission(id2))
+
+    def test_remove_submission_removes_user_from_leaderboard(self):
+        """Test that removing a user's only submission removes them from the leaderboard."""
+        submission_id = self.db.add_submission(
+            "user1", "/path/nb.ipynb", "completed", score=85.0
+        )
+        self.db.update_leaderboard("user1", submission_id, 85.0)
+
+        result = self.db.remove_submission(submission_id)
+        self.assertTrue(result)
+
+        leaderboard = self.db.get_leaderboard()
+        self.assertEqual(len(leaderboard), 0)
+
+    def test_remove_submission_nonexistent(self):
+        """Test that removing a non-existent submission returns False."""
+        result = self.db.remove_submission(99999)
+        self.assertFalse(result)
+
 
 if __name__ == '__main__':
     unittest.main()
