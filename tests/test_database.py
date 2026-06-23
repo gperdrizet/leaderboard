@@ -290,6 +290,20 @@ class TestDatabase(unittest.TestCase):
         result = self.db.remove_submission(99999)
         self.assertFalse(result)
 
+    def test_invalid_db_file_is_replaced(self):
+        """Test that a corrupt/LFS-pointer file at the DB path is silently replaced."""
+        corrupt_path = os.path.join(self.test_dir, "corrupt.db")
+        # Write an LFS pointer (plain text, not SQLite)
+        with open(corrupt_path, 'w') as f:
+            f.write("version https://git-lfs.github.com/object/v1\noid sha256:abc123\nsize 1234\n")
+
+        # Constructing a Database on that path should succeed and create valid tables
+        db2 = Database(corrupt_path)
+        self.assertTrue(os.path.exists(corrupt_path))
+        # Should be able to add a submission without error
+        submission_id = db2.add_submission("user", "/path/nb.ipynb", "pending")
+        self.assertGreater(submission_id, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
