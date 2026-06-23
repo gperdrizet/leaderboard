@@ -22,7 +22,18 @@ The currently deployed instance is scoring a feature engineering activity notebo
 2. Template [submission notebook](https://github.com/gperdrizet/FSA_devops/blob/main/notebooks/unit2/lesson_16/Lesson_16_activity.ipynb)
 
 
-## Features
+## Table of Contents
+
+1. [Features](#features)
+2. [Using the leaderboard](#using-the-leaderboard)
+3. [Running the leaderboard locally (development set-up)](#running-the-leaderboard-locally-development-set-up)
+4. [Deployment to HuggingFace Spaces](#deployment-to-huggingface-spaces)
+5. [Project Structure](#project-structure)
+6. [Contributing](#contributing)
+7. [License](#license)
+
+
+## 1. Features
 
 - **Upload Notebooks**: Students can upload Jupyter notebooks through a web interface
 - **Automatic Execution**: Notebooks are executed automatically in a sandboxed environment
@@ -31,7 +42,7 @@ The currently deployed instance is scoring a feature engineering activity notebo
 - **User Statistics**: Track individual submission history and performance
 - **Validation**: Built-in validation for file format, size, and structure
 
-## Using the leaderboard
+## 2. Using the leaderboard
 
 1. **Prepare your notebook**
    - Ensure all cells run without errors
@@ -50,7 +61,7 @@ The currently deployed instance is scoring a feature engineering activity notebo
    - View your submission history in "My Stats"
 
 
-## Running the leaderboard locally (development set-up)
+## 3. Running the leaderboard locally (development set-up)
 
 1. **Clone or download this repository**
 
@@ -82,7 +93,7 @@ python3 -m unittest discover tests -v
 6. **Open your browser** to `http://localhost:8501`
 
 
-## Customizing the Scoring Function
+### 3.1. Customizing the Scoring Function
 
 The scoring logic is in `src/scorer.py`. Customize the `score_notebook()` method to match your assignment requirements:
 
@@ -95,7 +106,7 @@ def score_notebook(self, executed_notebook_path: str, output_data: Optional[Dict
 ```
 
 
-## Admin Panel
+### 3.2. Admin Panel
 
 The application includes a PIN-protected admin panel for managing submissions.
 
@@ -113,7 +124,7 @@ export ADMIN_PIN=your_secure_pin
 - Secure PIN-based authentication (session-based)
 
 
-## Execution Timeout
+### 3.3. Execution Timeout
 
 Default timeout is 5 minutes. Change it in `app.py`:
 
@@ -122,7 +133,7 @@ st.session_state.notebook_runner = NotebookRunner("data/outputs", timeout_second
 ```
 
 
-## File Size Limit
+### 3.4. File Size Limit
 
 Default max file size is 10MB. Change it in `utils/validation.py`:
 
@@ -131,12 +142,7 @@ validator = NotebookValidator(max_file_size_mb=10.0)
 ```
 
 
-## Streamlit Configuration
-
-Modify `.streamlit/config.toml` to customize the app appearance and behavior.
-
-
-## Maintenance Utilities
+### 3.5. Maintenance Utilities
 
 Three CLI utilities are available for database maintenance. All use the `Database` class and will sync changes to the Hub dataset repo automatically if `HF_TOKEN` and `HF_DB_REPO` are set.
 
@@ -152,17 +158,18 @@ python utils/clean_running_submissions.py
 python utils/reprocess_submissions.py
 ```
 
+## 4. Deployment to HuggingFace Spaces
 
-## Deployment to HuggingFace Spaces
+Deploying requires three HuggingFace resources: a **Space** (hosts the app), a **dataset repository** (persists the database across restarts), and an **access token** (lets the app read and write the dataset repo). Once the token and two configuration values are added as Space Secrets, the app is fully self-contained - the database is pulled from the dataset repo on every startup and pushed back after every write, so no data is lost when the Space restarts or redeploys.
 
-### 1. Create a HuggingFace Space
+### 4.1. Create a HuggingFace Space
 
 Go to [huggingface.co/spaces](https://huggingface.co/spaces) → **New Space**.
 - SDK: **Streamlit**
 - Visibility: Public (or Private)
 
 
-### 2. Create a database dataset repository
+### 4.2. Create a database dataset repository
 
 The submission database is persisted in a separate HuggingFace dataset repo so it survives redeployments.
 
@@ -171,14 +178,14 @@ Go to [huggingface.co/new-dataset](https://huggingface.co/new-dataset):
 - Note the repo ID (e.g. `your-username/leaderboard-db`)
 
 
-### 3. Create an access token
+### 4.3. Create an access token
 
 Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → **Create new token**:
 - Type: **Fine-grained**
 - Grant **Write** access to both the Space repo and the dataset repo
 
 
-### 4. Add Space Secrets
+### 4.4. Add Space Secrets
 
 In your Space → **Settings → Variables and secrets**, add:
 
@@ -189,17 +196,22 @@ In your Space → **Settings → Variables and secrets**, add:
 | `ADMIN_PIN` | A secure PIN for the admin panel (6+ characters) |
 
 
-### 5. Configure GitHub Actions deployment (optional)
+### 4.5. CI/CD (GitHub actions)
 
-To enable automatic deployment on push to `main`, add the same token as a GitHub repository secret named `LEADERBOARD_GITHUB_DEPLOYMENT` (**Settings → Secrets and variables → Actions**).
+Two workflows handle CI/CD automatically:
+
+- **Unit Tests** (`.github/workflows/test.yml`) - runs on every pull request to `main`. A PR must pass tests before it can be merged.
+- **HF Spaces Deployment** (`.github/workflows/deploy-to-hf.yml`) - runs automatically on every push to `main` (i.e. after a PR is merged) and pushes the latest code to the HuggingFace Space.
+
+To enable deployment, add the access token from step 3 as a GitHub repository secret named `LEADERBOARD_GITHUB_DEPLOYMENT` (**Settings → Secrets and variables → Actions → New repository secret**).
 
 
-### 6. Deploy
+### 4.6. Deploy
 
-Push to `main` (triggers the GitHub Actions workflow) or upload files directly to the Space. On first startup the app creates a fresh database and pushes it to the dataset repo. All subsequent restarts pull the latest database from the dataset repo automatically.
+Open a pull request against `main`. Once the unit tests pass and the PR is merged, the deployment workflow triggers automatically and the Space is updated. On first startup the app creates a fresh database and pushes it to the dataset repo. All subsequent restarts pull the latest database from the dataset repo automatically.
 
 
-## Project Structure
+## 5. Project Structure
 
 ```
 .
@@ -217,12 +229,12 @@ Push to `main` (triggers the GitHub Actions workflow) or upload files directly t
 │   └── logger.py             # Logging configuration
 ├── utils/
 │   ├── __init__.py
-│   ├── validation.py         # Input validation
+│   ├── validation.py                 # Input validation
 │   ├── clean_running_submissions.py  # Fix stuck 'running' submissions
 │   ├── remove_submission.py          # CLI tool to remove a submission by ID
-│   └── reprocess_submissions.py     # Re-execute and re-score all submissions
+│   └── reprocess_submissions.py      # Re-execute and re-score all submissions
 ├── tests/
-│   └── ...                   # Unit tests
+│   └── ...                     # Unit tests
 └── data/
     ├── california_housing.csv  # Ground truth data
     ├── submissions/            # Uploaded notebooks
@@ -230,81 +242,18 @@ Push to `main` (triggers the GitHub Actions workflow) or upload files directly t
 ```
 
 
-## Technical Details
+## 6. Contributing
 
-### Database Schema
+Contributions are welcome. Please follow these guidelines:
 
-**submissions table:**
-- `id`: Primary key
-- `username`: Username of submitter
-- `timestamp`: Submission time
-- `notebook_path`: Path to uploaded notebook
-- `score`: Score (if completed)
-- `status`: 'pending', 'running', 'completed', or 'failed'
-- `error_message`: Error details (if failed)
+- **Bug reports and feature requests**: Open a [GitHub Issue](https://github.com/gperdrizet/leaderboard/issues) describing the problem or proposal before starting work.
+- **Pull requests**: Branch from `main`, make your changes, and ensure all tests pass locally before opening a PR:
+  ```bash
+  python3 -m unittest discover tests -v
+  ```
+  PRs are automatically tested on submission; they cannot be merged until the test suite passes.
 
-**leaderboard table:**
-- `username`: Primary key
-- `best_score`: Highest score achieved
-- `best_submission_id`: ID of best submission
-- `last_updated`: Last submission time
-- `submission_count`: Total number of submissions
-
-
-### Security Considerations
-
-**Important**: This application executes user-submitted code. For production use:
-
-1. **Run in a sandboxed environment** (e.g., Docker container)
-2. **Set resource limits** (CPU, memory, disk)
-3. **Use network isolation** to prevent external access
-4. **Enable execution timeout** (already implemented)
-5. **Sanitize all inputs** (already implemented for basic cases)
-
-
-### HuggingFace Spaces Limitations
-
-- **Database persistence**: Handled via a HuggingFace Hub dataset repo — the database is pulled on startup and pushed after every write. See deployment steps above.
-- **Execution time**: May have timeout limits for long-running notebooks. Adjust `timeout_seconds` in `app.py` accordingly.
-- **Resources**: Limited CPU/RAM on free-tier Spaces. Complex notebooks may hit memory limits.
-
-
-## Troubleshooting
-
-### Notebooks fail to execute
-
-- Check that the notebook runs locally with Python 3
-- Ensure all required packages are in `requirements.txt`
-- Check execution logs in the database or console
-
-
-### Scoring returns 0
-
-- Verify your scoring function in `src/scorer.py`
-- Check that the notebook produces expected outputs
-- Add debug logging to the scoring function
-
-
-### Database errors
-
-- Ensure `data/` directory exists and is writable
-- Check SQLite permissions
-- For HuggingFace Spaces, verify the `HF_TOKEN` and `HF_DB_REPO` Space Secrets are set correctly
-
-
-## Dependencies
-
-- **Streamlit**: Web interface framework
-- **Pandas**: Data manipulation
-- **Papermill**: Notebook execution
-- **nbformat/nbconvert**: Notebook parsing
-- **SQLite3**: Database (built-in with Python)
-- **huggingface_hub**: Database persistence across HuggingFace Space restarts
-
-
-## Contributing
-
-Feel free to customize this application for your specific needs. Some areas for enhancement:
+Some areas for enhancement:
 
 - More sophisticated scoring algorithms
 - Better error handling and user feedback
@@ -313,7 +262,7 @@ Feel free to customize this application for your specific needs. Some areas for 
 - UI/UX improvements
 
 
-## License
+## 7. License
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](https://github.com/gperdrizet/leaderboard/blob/main/LICENSE) file for full details.
 
