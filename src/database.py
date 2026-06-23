@@ -32,6 +32,7 @@ class Database:
             logger.info("HuggingFace Hub persistence disabled (HF_TOKEN/HF_DB_REPO not set)")
         self._ensure_db_directory()
         self._pull_from_hub()
+        self._remove_if_invalid()
         self._create_tables()
         logger.info("Database initialized successfully")
     
@@ -41,6 +42,29 @@ class Database:
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
             logger.info(f"Created database directory: {db_dir}")
+
+    def _remove_if_invalid(self):
+        """Remove the database file if it is not a valid SQLite database.
+
+        Handles the case where a Git LFS pointer file (or other corrupt file)
+        exists at the database path — e.g. left over from a previous deployment
+        that tracked the DB in LFS.
+        """
+        if not os.path.exists(self.db_path):
+            return
+        # Every valid SQLite 3 file starts with this 16-byte magic string.
+        sqlite_magic = b"SQLite format 3\x00"
+        try:
+            with open(self.db_path, "rb") as f:
+                header = f.read(16)
+        except OSError:
+            header = b""
+        if header != sqlite_magic:
+            logger.warning(
+                f"Database file at '{self.db_path}' is not a valid SQLite database "
+                "(possibly a Git LFS pointer). Removing it so a fresh database can be created."
+            )
+            os.remove(self.db_path)
 
     def _pull_from_hub(self):
         """Download database from HuggingFace Hub dataset repo on startup.
