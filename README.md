@@ -31,98 +31,7 @@ The currently deployed instance is scoring a feature engineering activity notebo
 - **User Statistics**: Track individual submission history and performance
 - **Validation**: Built-in validation for file format, size, and structure
 
-
-## Quick Start
-
-### Local Installation
-
-1. **Clone or download this repository**
-
-2. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-3. **Run the application**
-```bash
-streamlit run app.py
-```
-
-4. **Open your browser** to `http://localhost:8501`
-
-### Deployment on HuggingFace Spaces
-
-1. **Create a new Space** on [HuggingFace](https://huggingface.co/spaces)
-   - Select "Streamlit" as the SDK
-   
-2. **Upload all files** from this repository to your Space
-
-3. **The app will automatically deploy** and be accessible at your Space's URL
-
-
-## Project Structure
-
-```
-.
-├── app.py                    # Main Streamlit application
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-├── .streamlit/
-│   └── config.toml           # Streamlit configuration
-├── src/
-│   ├── __init__.py
-│   ├── database.py           # SQLite database operations
-│   ├── notebook_runner.py    # Notebook execution engine
-│   ├── scorer.py             # Scoring logic
-│   └── leaderboard.py        # Leaderboard management
-├── utils/
-│   ├── __init__.py
-│   └── validation.py         # Input validation
-└── data/
-    ├── submissions/          # Uploaded notebooks
-    ├── outputs/              # Execution results
-    └── leaderboard.db        # SQLite database
-```
-
-
-## Configuration
-
-### Scoring Function
-
-The scoring logic is in `src/scorer.py`. Customize the `score_notebook()` method to match your assignment requirements:
-
-```python
-def score_notebook(self, executed_notebook_path: str, output_data: Optional[Dict] = None) -> Tuple[float, str]:
-    # Add your custom scoring logic here
-    score = 0.0
-    feedback = "Your feedback here"
-    return score, feedback
-```
-
-### Execution Timeout
-
-Default timeout is 5 minutes. Change it in `app.py`:
-
-```python
-st.session_state.notebook_runner = NotebookRunner("data/outputs", timeout_seconds=300)
-```
-
-### File Size Limit
-
-Default max file size is 10MB. Change it in `utils/validation.py`:
-
-```python
-validator = NotebookValidator(max_file_size_mb=10.0)
-```
-
-### Streamlit Configuration
-
-Modify `.streamlit/config.toml` to customize the app appearance and behavior.
-
-
-## Usage
-
-### For Students
+## Using the leaderboard
 
 1. **Prepare your notebook**
    - Ensure all cells run without errors
@@ -140,41 +49,185 @@ Modify `.streamlit/config.toml` to customize the app appearance and behavior.
    - Check the leaderboard to see your standing
    - View your submission history in "My Stats"
 
-### For Instructors
 
-#### Customizing the Scoring Function
+## Running the leaderboard locally (development set-up)
 
-1. Open `src/scorer.py`
-2. Modify the `score_notebook()` method
-3. Add ground truth data if needed:
-   ```python
-   scorer = Scorer(ground_truth_path="path/to/ground_truth.json")
-   ```
+1. **Clone or download this repository**
 
-#### Admin Panel
+2. **Create and activate a virtual environment**
 
-The application includes an admin panel for managing submissions:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-1. **Set up admin access**:
+3. **Install dependencies**
 
-   Create and store an administrator pin in an environment variable:
+```bash
+pip install -r requirements.txt
+```
 
-   ```bash
-   export ADMIN_PIN=your_secure_pin
-   ```
+4. **Run the application**
 
-2. **Access the admin panel**:
-   - Navigate to the "Admin" page in the sidebar
-   - Enter your admin PIN
-   - View all submissions and remove entries as needed
+```bash
+streamlit run app.py
+```
 
-3. **Admin features**:
-   - View all submissions with ID, username, score, status, and timestamp
-   - Remove individual submissions by ID
-   - Automatic leaderboard recalculation after removal
-   - Secure PIN-based authentication (session-based)
+5. **Run the tests**
 
-**Security Note**: The admin PIN is stored in an environment variable and should be kept secure. Use a strong PIN (6+ characters recommended).
+```bash
+python3 -m unittest discover tests -v
+```
+
+6. **Open your browser** to `http://localhost:8501`
+
+
+## Customizing the Scoring Function
+
+The scoring logic is in `src/scorer.py`. Customize the `score_notebook()` method to match your assignment requirements:
+
+```python
+def score_notebook(self, executed_notebook_path: str, output_data: Optional[Dict] = None) -> Tuple[float, str]:
+    # Add your custom scoring logic here
+    score = 0.0
+    feedback = "Your feedback here"
+    return score, feedback
+```
+
+
+## Admin Panel
+
+The application includes a PIN-protected admin panel for managing submissions.
+
+**Setup**: Set the `ADMIN_PIN` Space Secret (see deployment steps below). For local development, set it as an environment variable:
+
+```bash
+export ADMIN_PIN=your_secure_pin
+```
+
+**Access**: Navigate to the "Admin" page in the sidebar and enter your PIN.
+
+**Features**:
+- View all submissions with ID, username, score, status, and timestamp
+- Remove individual submissions by ID with automatic leaderboard recalculation
+- Secure PIN-based authentication (session-based)
+
+
+## Execution Timeout
+
+Default timeout is 5 minutes. Change it in `app.py`:
+
+```python
+st.session_state.notebook_runner = NotebookRunner("data/outputs", timeout_seconds=300)
+```
+
+
+## File Size Limit
+
+Default max file size is 10MB. Change it in `utils/validation.py`:
+
+```python
+validator = NotebookValidator(max_file_size_mb=10.0)
+```
+
+
+## Streamlit Configuration
+
+Modify `.streamlit/config.toml` to customize the app appearance and behavior.
+
+
+## Maintenance Utilities
+
+Three CLI utilities are available for database maintenance. All use the `Database` class and will sync changes to the Hub dataset repo automatically if `HF_TOKEN` and `HF_DB_REPO` are set.
+
+```bash
+# List all submissions and remove one by ID
+python utils/remove_submission.py
+python utils/remove_submission.py <id>
+
+# Mark stuck 'running' submissions as 'failed'
+python utils/clean_running_submissions.py
+
+# Re-execute and re-score all notebooks in data/submissions/
+python utils/reprocess_submissions.py
+```
+
+
+## Deployment to HuggingFace Spaces
+
+### 1. Create a HuggingFace Space
+
+Go to [huggingface.co/spaces](https://huggingface.co/spaces) → **New Space**.
+- SDK: **Streamlit**
+- Visibility: Public (or Private)
+
+
+### 2. Create a database dataset repository
+
+The submission database is persisted in a separate HuggingFace dataset repo so it survives redeployments.
+
+Go to [huggingface.co/new-dataset](https://huggingface.co/new-dataset):
+- Set visibility to **Private**
+- Note the repo ID (e.g. `your-username/leaderboard-db`)
+
+
+### 3. Create an access token
+
+Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → **Create new token**:
+- Type: **Fine-grained**
+- Grant **Write** access to both the Space repo and the dataset repo
+
+
+### 4. Add Space Secrets
+
+In your Space → **Settings → Variables and secrets**, add:
+
+| Secret | Value |
+|---|---|
+| `HF_TOKEN` | The token from step 3 |
+| `HF_DB_REPO` | Dataset repo ID, e.g. `your-username/leaderboard-db` |
+| `ADMIN_PIN` | A secure PIN for the admin panel (6+ characters) |
+
+
+### 5. Configure GitHub Actions deployment (optional)
+
+To enable automatic deployment on push to `main`, add the same token as a GitHub repository secret named `LEADERBOARD_GITHUB_DEPLOYMENT` (**Settings → Secrets and variables → Actions**).
+
+
+### 6. Deploy
+
+Push to `main` (triggers the GitHub Actions workflow) or upload files directly to the Space. On first startup the app creates a fresh database and pushes it to the dataset repo. All subsequent restarts pull the latest database from the dataset repo automatically.
+
+
+## Project Structure
+
+```
+.
+├── app.py                    # Main Streamlit application
+├── requirements.txt          # Python dependencies
+├── README.md                 # This file
+├── .streamlit/
+│   └── config.toml           # Streamlit configuration
+├── src/
+│   ├── __init__.py
+│   ├── database.py           # SQLite database operations + Hub sync
+│   ├── notebook_runner.py    # Notebook execution engine
+│   ├── scorer.py             # Scoring logic
+│   ├── leaderboard.py        # Leaderboard management
+│   └── logger.py             # Logging configuration
+├── utils/
+│   ├── __init__.py
+│   ├── validation.py         # Input validation
+│   ├── clean_running_submissions.py  # Fix stuck 'running' submissions
+│   ├── remove_submission.py          # CLI tool to remove a submission by ID
+│   └── reprocess_submissions.py     # Re-execute and re-score all submissions
+├── tests/
+│   └── ...                   # Unit tests
+└── data/
+    ├── california_housing.csv  # Ground truth data
+    ├── submissions/            # Uploaded notebooks
+    └── outputs/                # Executed notebooks
+```
 
 
 ## Technical Details
@@ -197,6 +250,7 @@ The application includes an admin panel for managing submissions:
 - `last_updated`: Last submission time
 - `submission_count`: Total number of submissions
 
+
 ### Security Considerations
 
 **Important**: This application executes user-submitted code. For production use:
@@ -206,16 +260,13 @@ The application includes an admin panel for managing submissions:
 3. **Use network isolation** to prevent external access
 4. **Enable execution timeout** (already implemented)
 5. **Sanitize all inputs** (already implemented for basic cases)
-6. **Consider using additional security tools** like:
-   - RestrictedPython for code execution
-   - Docker for containerization
-   - Resource limiting with cgroups
+
 
 ### HuggingFace Spaces Limitations
 
-- **Storage**: Limited persistent storage (use external storage if needed)
-- **Execution Time**: May have timeout limits for long-running processes
-- **Resources**: Limited CPU/RAM (adjust timeout accordingly)
+- **Database persistence**: Handled via a HuggingFace Hub dataset repo — the database is pulled on startup and pushed after every write. See deployment steps above.
+- **Execution time**: May have timeout limits for long-running notebooks. Adjust `timeout_seconds` in `app.py` accordingly.
+- **Resources**: Limited CPU/RAM on free-tier Spaces. Complex notebooks may hit memory limits.
 
 
 ## Troubleshooting
@@ -226,17 +277,19 @@ The application includes an admin panel for managing submissions:
 - Ensure all required packages are in `requirements.txt`
 - Check execution logs in the database or console
 
+
 ### Scoring returns 0
 
 - Verify your scoring function in `src/scorer.py`
 - Check that the notebook produces expected outputs
 - Add debug logging to the scoring function
 
+
 ### Database errors
 
 - Ensure `data/` directory exists and is writable
 - Check SQLite permissions
-- For HuggingFace Spaces, ensure persistent storage is configured
+- For HuggingFace Spaces, verify the `HF_TOKEN` and `HF_DB_REPO` Space Secrets are set correctly
 
 
 ## Dependencies
@@ -246,6 +299,7 @@ The application includes an admin panel for managing submissions:
 - **Papermill**: Notebook execution
 - **nbformat/nbconvert**: Notebook parsing
 - **SQLite3**: Database (built-in with Python)
+- **huggingface_hub**: Database persistence across HuggingFace Space restarts
 
 
 ## Contributing
