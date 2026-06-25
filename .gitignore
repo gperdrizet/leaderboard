@@ -31,14 +31,10 @@ wheels/
 .ipynb_checkpoints
 *.ipynb_checkpoints/
 
-# Data directories (except structure)
-# data/submissions/*
-# data/outputs/*
+# Data directories
+data/submissions/*
+data/outputs/*
 data/*.db
-
-# Keep directory structure
-# !data/submissions/.gitkeep
-# !data/outputs/.gitkeep
 
 # *.csv
 # !/data/california_housing.csv
