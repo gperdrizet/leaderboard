@@ -33,6 +33,10 @@ st.set_page_config(
 )
 
 # Initialize session state
+# Ensure required data directories exist
+os.makedirs("data/submissions", exist_ok=True)
+os.makedirs("data/outputs", exist_ok=True)
+
 if 'db' not in st.session_state:
     logger.info("Initializing application session state")
     st.session_state.db = Database("data/leaderboard.db")
